@@ -36,52 +36,41 @@ public class BedrockLoginHandler {
     public void handleLoginPacket(ChannelHandlerContext ctx, ByteBuf buf,
             InetSocketAddress sender, BedrockPlayer player) {
         try {
-            // Leer protocolo del cliente
             int protocol = buf.readIntLE();
             player.setProtocol(protocol);
             plugin.log("&aLogin Bedrock | Protocolo: &e" + protocol
                     + " &7de: &f" + sender.getAddress().getHostAddress());
 
-            // En modo offline simplemente aceptamos sin verificar JWT
             if (!plugin.getConfigManager().isBedrockOnlineMode()) {
-                // Generar nombre aleatorio para modo offline
                 String username = "Bedrock_" + (int)(Math.random() * 99999);
                 String prefixedName = plugin.getConfigManager().getBedrockPrefix() + username;
                 UUID uuid = UUID.nameUUIDFromBytes(
                         ("bedrock_offline:" + username).getBytes(StandardCharsets.UTF_8));
-
                 player.setUsername(prefixedName);
                 player.setUuid(uuid);
                 player.setState(BedrockPlayer.State.LOGIN);
-
                 plugin.log("&aJugador offline aceptado: &e" + prefixedName);
-                plugin.getPlayerDetector().registerPlayer(
-                        uuid, PlayerDetector.PlayerType.BEDROCK, "26.3");
-
+                plugin.getPlayerDetector().registerPlayer(uuid, PlayerDetector.PlayerType.BEDROCK, "26.3");
                 sendPlayStatus(ctx, sender, STATUS_LOGIN_SUCCESS);
                 sendResourcePacksInfo(ctx, sender);
                 return;
             }
 
-            // Modo online — leer JWT
             if (!buf.isReadable(4)) {
                 sendPlayStatus(ctx, sender, STATUS_FAILED_CLIENT);
                 return;
             }
-
             int chainLength = buf.readIntLE();
             if (chainLength <= 0 || chainLength > 65536) {
                 sendPlayStatus(ctx, sender, STATUS_FAILED_CLIENT);
                 return;
             }
-
             byte[] chainBytes = new byte[chainLength];
             buf.readBytes(chainBytes);
             String jwtChain = new String(chainBytes, StandardCharsets.UTF_8);
 
             XboxAuthManager xboxAuth = new XboxAuthManager();
             XboxAuthManager.AuthResult auth = xboxAuth.authenticate(jwtChain, true);
-
             if (!auth.authenticated) {
                 plugin.log("&cAuth fallida: &f" + auth.errorMessage);
                 sendPlayStatus(ctx, sender, STATUS_FAILED_CLIENT);
@@ -93,11 +82,8 @@ public class BedrockLoginHandler {
             player.setXuid(auth.xuid);
             player.setUuid(auth.uuid);
             player.setState(BedrockPlayer.State.LOGIN);
-
             plugin.log("&aJugador autenticado: &e" + prefixedName);
-            plugin.getPlayerDetector().registerPlayer(
-                    auth.uuid, PlayerDetector.PlayerType.BEDROCK, "26.3");
-
+            plugin.getPlayerDetector().registerPlayer(auth.uuid, PlayerDetector.PlayerType.BEDROCK, "26.3");
             sendPlayStatus(ctx, sender, STATUS_LOGIN_SUCCESS);
             sendResourcePacksInfo(ctx, sender);
 
@@ -112,9 +98,8 @@ public class BedrockLoginHandler {
         if (!buf.isReadable()) return;
         int status = buf.readByte() & 0xFF;
         plugin.log("&aResourcePackResponse: &e" + status);
-        if (status == 4 || status == 2) {
-            sendResourcePackStack(ctx, sender);
-        } else if (status == 3) {
+        // Aceptar cualquier status y proceder con StartGame
+        if (status == 4 || status == 2 || status == 3 || status == 1) {
             sendStartGame(ctx, sender, player);
         }
     }
@@ -152,6 +137,9 @@ public class BedrockLoginHandler {
     }
 
     public void sendStartGame(ChannelHandlerContext ctx, InetSocketAddress sender, BedrockPlayer player) {
+        if (player.getState() == BedrockPlayer.State.PLAYING ||
+            player.getState() == BedrockPlayer.State.SPAWNING) return;
+
         player.setState(BedrockPlayer.State.SPAWNING);
         player.setPosition(0, 64, 0);
         plugin.log("&aEnviando StartGame a: &e" + player.getUsername());
@@ -230,21 +218,21 @@ public class BedrockLoginHandler {
         buf.writeBoolean(false);
 
         sendGamePacket(ctx, sender, buf);
+        plugin.log("&aStartGame enviado");
 
+        // Spawn rápido — 2 ticks
         Bukkit.getScheduler().runTaskLaterAsynchronously(plugin, () -> {
             sendSetTime(ctx, sender);
             sendRespawn(ctx, sender, player);
             sendPlayStatus(ctx, sender, STATUS_PLAYER_SPAWN);
             player.setState(BedrockPlayer.State.PLAYING);
             plugin.log("&a✔ Jugador spawneado: &e" + player.getUsername());
-
             plugin.getConnectionLogger().logJoin(
                 player.getUsername(),
                 PlayerDetector.PlayerType.BEDROCK,
                 sender.getAddress().getHostAddress(),
                 "26.3"
             );
-
             Bukkit.getScheduler().runTask(plugin, () -> {
                 String joinMsg = plugin.getConfigManager().getMessage(
                         "player-join-bedrock",
@@ -252,7 +240,7 @@ public class BedrockLoginHandler {
                         "{version}", "26.3");
                 Bukkit.broadcastMessage(joinMsg);
             });
-        }, 20L);
+        }, 2L);
     }
 
     private void sendSetTime(ChannelHandlerContext ctx, InetSocketAddress sender) {
