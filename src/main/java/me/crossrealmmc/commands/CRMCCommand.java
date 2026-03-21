@@ -15,8 +15,6 @@ import java.util.List;
 public class CRMCCommand implements CommandExecutor, TabCompleter {
 
     private final CrossRealmMC plugin;
-
-    // Mantenimiento temporal (no persiste en config)
     private boolean maintenanceBedrock = false;
     private boolean maintenanceJava = false;
 
@@ -62,6 +60,7 @@ public class CRMCCommand implements CommandExecutor, TabCompleter {
                 break;
 
             case "list":
+                PlayerDetector det2 = plugin.getPlayerDetector();
                 StringBuilder javaList = new StringBuilder();
                 StringBuilder bedrockList = new StringBuilder();
                 for (Player p : Bukkit.getOnlinePlayers()) {
@@ -74,8 +73,8 @@ public class CRMCCommand implements CommandExecutor, TabCompleter {
                 String jl = javaList.length() > 0 ? javaList.substring(0, javaList.length()-2) : "Ninguno";
                 String bl = bedrockList.length() > 0 ? bedrockList.substring(0, bedrockList.length()-2) : "Ninguno";
                 sender.sendMessage(plugin.getConfigManager().getMessage("cmd-list",
-                        "{java-count}", String.valueOf(det.getOnlineJavaCount()),
-                        "{bedrock-count}", String.valueOf(det.getOnlineBedrockCount()),
+                        "{java-count}", String.valueOf(det2.getOnlineJavaCount()),
+                        "{bedrock-count}", String.valueOf(det2.getOnlineBedrockCount()),
                         "{java-list}", jl,
                         "{bedrock-list}", bl
                 ));
@@ -105,12 +104,9 @@ public class CRMCCommand implements CommandExecutor, TabCompleter {
                     sender.sendMessage(plugin.getConfigManager().getMessage("ban-success",
                             "{player}", banTarget, "{edition}", edition));
                     Player banPlayer = Bukkit.getPlayer(banTarget);
-                    if (banPlayer != null) {
-                        banPlayer.kickPlayer(plugin.getConfigManager().getMessage("banned-message"));
-                    }
+                    if (banPlayer != null) banPlayer.kickPlayer(plugin.getConfigManager().getMessage("banned-message"));
                 } else {
-                    sender.sendMessage(plugin.getConfigManager().getMessage("ban-already",
-                            "{player}", banTarget));
+                    sender.sendMessage(plugin.getConfigManager().getMessage("ban-already", "{player}", banTarget));
                 }
                 break;
 
@@ -119,13 +115,10 @@ public class CRMCCommand implements CommandExecutor, TabCompleter {
                     sender.sendMessage("§cUso: /crmc unban <jugador>");
                     return true;
                 }
-                String unbanTarget = args[1];
-                if (plugin.getBanManager().unban(unbanTarget)) {
-                    sender.sendMessage(plugin.getConfigManager().getMessage("unban-success",
-                            "{player}", unbanTarget));
+                if (plugin.getBanManager().unban(args[1])) {
+                    sender.sendMessage(plugin.getConfigManager().getMessage("unban-success", "{player}", args[1]));
                 } else {
-                    sender.sendMessage(plugin.getConfigManager().getMessage("ban-not-found",
-                            "{player}", unbanTarget));
+                    sender.sendMessage(plugin.getConfigManager().getMessage("ban-not-found", "{player}", args[1]));
                 }
                 break;
 
@@ -153,21 +146,16 @@ public class CRMCCommand implements CommandExecutor, TabCompleter {
 
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
-        if (args.length == 1) {
+        if (args.length == 1)
             return Arrays.asList("help", "info", "list", "reload", "ban", "unban", "stats", "maintenance");
-        }
-        if (args.length == 2 && args[0].equalsIgnoreCase("ban")) {
+        if (args.length == 2 && args[0].equalsIgnoreCase("ban"))
             return Bukkit.getOnlinePlayers().stream().map(Player::getName).toList();
-        }
-        if (args.length == 3 && args[0].equalsIgnoreCase("ban")) {
+        if (args.length == 3 && args[0].equalsIgnoreCase("ban"))
             return Arrays.asList("java", "bedrock", "all");
-        }
-        if (args.length == 2 && args[0].equalsIgnoreCase("maintenance")) {
+        if (args.length == 2 && args[0].equalsIgnoreCase("maintenance"))
             return Arrays.asList("bedrock", "java");
-        }
-        if (args.length == 3 && args[0].equalsIgnoreCase("maintenance")) {
+        if (args.length == 3 && args[0].equalsIgnoreCase("maintenance"))
             return Arrays.asList("on", "off");
-        }
         return List.of();
     }
 
