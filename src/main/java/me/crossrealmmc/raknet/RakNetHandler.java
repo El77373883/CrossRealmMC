@@ -48,7 +48,9 @@ public class RakNetHandler extends SimpleChannelInboundHandler<DatagramPacket> {
         plugin.log("&ePaquete: &f0x" + String.format("%02X", packetId & 0xFF)
                 + " &7de &f" + sender.getAddress().getHostAddress());
 
-        if ((packetId & 0xFF) >= 0x80 && (packetId & 0xFF) <= 0x8F) {
+        // FrameSet packets (0x80-0x8F) y también 0xC1
+        if ((packetId & 0xFF) >= 0x80 && (packetId & 0xFF) <= 0x8F ||
+            (packetId & 0xFF) == 0xC1) {
             buf.readByte();
             handleFrameSet(ctx, buf, sender);
             return;
@@ -93,31 +95,23 @@ public class RakNetHandler extends SimpleChannelInboundHandler<DatagramPacket> {
                 boolean isFragmented = (flags & 0x10) != 0;
                 int reliability = (flags >> 5) & 0x07;
 
-                // Reliable (2, 3, 4, 6, 7)
                 if (reliability == 2 || reliability == 3 ||
                     reliability == 4 || reliability == 6 || reliability == 7) {
                     if (!buf.isReadable(3)) return;
                     buf.skipBytes(3);
                 }
-
-                // Sequenced (1, 4)
                 if (reliability == 1 || reliability == 4) {
                     if (!buf.isReadable(3)) return;
                     buf.skipBytes(3);
                 }
-
-                // Ordered (3, 4, 7)
                 if (reliability == 3 || reliability == 4 || reliability == 7) {
                     if (!buf.isReadable(4)) return;
                     buf.skipBytes(4);
                 }
-
-                // Fragmentado
                 if (isFragmented) {
                     if (!buf.isReadable(10)) return;
                     buf.skipBytes(10);
                 }
-
                 if (!buf.isReadable(byteLength)) return;
                 ByteBuf payload = buf.readBytes(byteLength);
                 processGamePayload(ctx, payload, sender);
@@ -132,6 +126,20 @@ public class RakNetHandler extends SimpleChannelInboundHandler<DatagramPacket> {
         if (!payload.isReadable()) return;
         byte firstByte = payload.getByte(payload.readerIndex());
 
+        // ConnectedPing → ConnectedPong
+        if (firstByte == 0x00) {
+            payload.readByte();
+            if (payload.isReadable(8)) {
+                long pingTime = payload.readLong();
+                ByteBuf pong = Unpooled.buffer();
+                pong.writeByte(0x03);
+                pong.writeLong(pingTime);
+                pong.writeLong(System.currentTimeMillis());
+                sendFrameSet(ctx, sender, pong);
+            }
+            return;
+        }
+
         if (firstByte == 0x09) {
             payload.readByte();
             handleConnectionRequest(ctx, payload, sender);
@@ -139,7 +147,7 @@ public class RakNetHandler extends SimpleChannelInboundHandler<DatagramPacket> {
         }
         if (firstByte == 0x13) {
             plugin.log("&aNewIncomingConnection: &f" + sender.getAddress().getHostAddress());
-            BedrockPlayer player = registry.getOrCreate(sender);
+            registry.getOrCreate(sender);
             plugin.log("&a✔ RakNet completo: &f" + sender.getAddress().getHostAddress());
             return;
         }
