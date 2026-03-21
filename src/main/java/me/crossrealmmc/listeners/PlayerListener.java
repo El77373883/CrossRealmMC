@@ -23,7 +23,6 @@ public class PlayerListener implements Listener {
         String name = player.getName();
         PlayerDetector detector = plugin.getPlayerDetector();
 
-        // Detectar si es Bedrock por el prefijo
         PlayerDetector.PlayerType type;
         if (detector.isBedrockUsername(name)) {
             type = PlayerDetector.PlayerType.BEDROCK;
@@ -33,31 +32,23 @@ public class PlayerListener implements Listener {
 
         detector.registerPlayer(player.getUniqueId(), type, null);
 
-        // Verificar ban
         if (plugin.getBanManager().isBanned(name, type)) {
             player.kickPlayer(plugin.getConfigManager().getMessage("banned-message"));
             return;
         }
 
-        // Log de conexion
         String ip = player.getAddress() != null ? player.getAddress().getAddress().getHostAddress() : "Unknown";
-        plugin.getConnectionLogger().logJoin(name, type, ip, "Java/" + player.getClientBrandName());
+        plugin.getConnectionLogger().logJoin(name, type, ip, type == PlayerDetector.PlayerType.BEDROCK ? "Bedrock" : "Java");
 
-        // Mensaje de join personalizado
         if (plugin.getConfigManager().isShowEditionPrefix()) {
-            String prefix = type == PlayerDetector.PlayerType.BEDROCK
-                    ? plugin.getConfigManager().getBedrockChatPrefix()
-                    : plugin.getConfigManager().getJavaChatPrefix();
-
             String joinMsg = type == PlayerDetector.PlayerType.BEDROCK
                     ? plugin.getConfigManager().getMessage("player-join-bedrock",
                         "{player}", name, "{version}", "Bedrock")
                     : plugin.getConfigManager().getMessage("player-join-java",
                         "{player}", name);
 
-            event.setJoinMessage(joinMsg);
+            event.setJoinMessage(null);
             Bukkit.broadcastMessage(joinMsg);
-            event.setJoinMessage(null); // evitar duplicado
         }
     }
 
