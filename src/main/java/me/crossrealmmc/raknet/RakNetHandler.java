@@ -48,7 +48,7 @@ public class RakNetHandler extends SimpleChannelInboundHandler<DatagramPacket> {
         plugin.log("&ePaquete: &f0x" + String.format("%02X", packetId & 0xFF)
                 + " &7de &f" + sender.getAddress().getHostAddress());
 
-        // FrameSet packets (0x80-0x8F) y también 0xC1
+        // FrameSet 0x80-0x8F y también 0xC1
         if ((packetId & 0xFF) >= 0x80 && (packetId & 0xFF) <= 0x8F ||
             (packetId & 0xFF) == 0xC1) {
             buf.readByte();
