@@ -10,7 +10,7 @@ public class PacketUnconnectedPong {
     private final CrossRealmMC plugin;
     private final long pingTime;
 
-    private static final int BEDROCK_PROTOCOL = 930;
+    private static final int BEDROCK_PROTOCOL = 924;
     private static final String BEDROCK_VERSION = "26.3";
 
     public PacketUnconnectedPong(CrossRealmMC plugin, long pingTime) {
