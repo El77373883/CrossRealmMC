@@ -26,7 +26,6 @@
             <id>placeholderapi</id>
             <url>https://repo.extendedclip.com/content/repositories/placeholderapi/</url>
         </repository>
-        <!-- ViaVersion repo -->
         <repository>
             <id>viaversion-repo</id>
             <url>https://repo.viaversion.com</url>
@@ -77,7 +76,7 @@
         <!-- ViaBackwards -->
         <dependency>
             <groupId>com.viaversion</groupId>
-            <artifactId>viabackwards-api</artifactId>
+            <artifactId>viabackwards</artifactId>
             <version>5.0.0</version>
             <scope>provided</scope>
         </dependency>
