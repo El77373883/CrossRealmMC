@@ -10,7 +10,7 @@ public class PacketUnconnectedPong {
     private final CrossRealmMC plugin;
     private final long pingTime;
 
-    private static final int BEDROCK_PROTOCOL = 956;
+    private static final int BEDROCK_PROTOCOL = 924;
     private static final String BEDROCK_VERSION = "26.3";
 
     public PacketUnconnectedPong(CrossRealmMC plugin, long pingTime) {
@@ -30,24 +30,27 @@ public class PacketUnconnectedPong {
         int online = Bukkit.getOnlinePlayers().size();
         int max = Bukkit.getMaxPlayers();
 
-        String serverName = "MCPE"
-                + ";" + motd1
-                + ";" + BEDROCK_PROTOCOL
-                + ";" + BEDROCK_VERSION
-                + ";" + online
-                + ";" + max
-                + ";" + RakNetServer.SERVER_GUID
-                + ";" + motd2
-                + ";Survival;1;"
-                + plugin.getConfigManager().getBedrockPort()
-                + ";19133;";
+        // Formato exacto que usa Geyser
+        String serverName = "MCPE" + ";"
+                + motd1 + ";"
+                + BEDROCK_PROTOCOL + ";"
+                + BEDROCK_VERSION + ";"
+                + online + ";"
+                + max + ";"
+                + RakNetServer.SERVER_GUID + ";"
+                + motd2 + ";"
+                + "Creative" + ";"
+                + "1" + ";"
+                + plugin.getConfigManager().getBedrockPort() + ";"
+                + "19133" + ";"
+                + "1";
 
         buf.writeByte(0x1C);
         buf.writeLong(pingTime);
         buf.writeLong(RakNetServer.SERVER_GUID);
         PacketUtils.writeMagic(buf);
 
-        byte[] nameBytes = serverName.getBytes();
+        byte[] nameBytes = serverName.getBytes(java.nio.charset.StandardCharsets.UTF_8);
         buf.writeShort(nameBytes.length);
         buf.writeBytes(nameBytes);
 
