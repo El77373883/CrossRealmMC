@@ -21,9 +21,9 @@ public class PacketConnectionRequestAccepted {
         PacketUtils.writeAddress(buf, clientAddress);
         buf.writeShort(0); // index
 
-        // 20 IPs vacias de sistema
-        InetSocketAddress empty = new InetSocketAddress("0.0.0.0", 0);
-        for (int i = 0; i < 20; i++) {
+        // Bedrock 26.3 espera exactamente 10 IPs
+        InetSocketAddress empty = new InetSocketAddress("255.255.255.255", 19132);
+        for (int i = 0; i < 10; i++) {
             PacketUtils.writeAddress(buf, empty);
         }
 
