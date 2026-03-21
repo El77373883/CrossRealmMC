@@ -1,0 +1,37 @@
+name: 🔨 Build CrossRealmMC
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch: # permite ejecutar manualmente desde GitHub
+
+jobs:
+  build:
+    name: Compilar CrossRealmMC
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Descargar codigo
+        uses: actions/checkout@v3
+
+      - name: ☕ Instalar Java 17
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: 🔨 Compilar con Maven
+        run: mvn clean package -B
+
+      - name: 📦 Subir CrossRealmMC.jar
+        uses: actions/upload-artifact@v3
+        with:
+          name: CrossRealmMC-1.0.0
+          path: target/CrossRealmMC.jar
+          retention-days: 30
+
+      - name: ✅ Build completado
+        run: echo "CrossRealmMC.jar compilado exitosamente por soyadrianyt001"

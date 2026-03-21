@@ -1,0 +1,125 @@
+# ╔══════════════════════════════════════════════╗
+# ║           CrossRealmMC - config.yml          ║
+# ║     Bedrock-Java Bridge | Version 1.0.0      ║
+# ╚══════════════════════════════════════════════╝
+
+# ─────────────────────────────────────────
+# CONFIGURACION DEL SERVIDOR
+# ─────────────────────────────────────────
+server:
+  # IP de tu servidor Java (donde corre Spigot/Paper)
+  java-ip: "127.0.0.1"
+  # Puerto de tu servidor Java (por defecto 25565)
+  java-port: 25565
+
+  # IP que escucha para conexiones Bedrock
+  bedrock-ip: "0.0.0.0"
+  # Puerto Bedrock (por defecto 19132)
+  bedrock-port: 19132
+
+  # Nombre que ve el jugador Bedrock al buscar el server
+  motd-line1: "&bCrossRealmMC &7| Java + Bedrock"
+  motd-line2: "&aConecta desde cualquier edicion!"
+
+  # Maximo de jugadores Bedrock al mismo tiempo (0 = sin limite)
+  max-bedrock-players: 0
+
+# ─────────────────────────────────────────
+# MODO ONLINE / OFFLINE
+# ─────────────────────────────────────────
+authentication:
+  # Modo online para jugadores JAVA
+  # true  = solo cuentas originales de Mojang/Microsoft
+  # false = acepta cuentas piratas de Java
+  java-online-mode: true
+
+  # Modo online para jugadores BEDROCK
+  # true  = requiere cuenta Xbox Live de Microsoft
+  # false = acepta Bedrock sin cuenta Xbox (pirata)
+  bedrock-online-mode: false
+
+  # Prefijo que se pone a los jugadores Bedrock
+  # Ejemplo: .Adrianyt001
+  bedrock-prefix: "."
+
+# ─────────────────────────────────────────
+# VERSIONES BEDROCK SOPORTADAS
+# ─────────────────────────────────────────
+bedrock-versions:
+  - "26.3"
+  - "26.2"
+  - "26.1"
+  - "26.0"
+
+# ─────────────────────────────────────────
+# IDIOMA
+# ─────────────────────────────────────────
+# Opciones: es (Espanol) | en (Ingles)
+language: "es"
+
+# ─────────────────────────────────────────
+# WHITELIST POR EDICION
+# ─────────────────────────────────────────
+whitelist:
+  # Activar whitelist solo para Bedrock
+  bedrock-whitelist: false
+  # Activar whitelist solo para Java
+  java-whitelist: false
+
+# ─────────────────────────────────────────
+# ANTI-CHEAT
+# ─────────────────────────────────────────
+anticheat:
+  enabled: true
+  # Detectar movimiento invalido de Bedrock
+  check-movement: true
+  # Detectar velocidad anormal
+  check-speed: true
+  # Accion al detectar trampa: KICK o BAN
+  action: "KICK"
+  # Mensaje al hacer kick por anticheat
+  kick-message: "&cFuiste expulsado por movimiento invalido."
+
+# ─────────────────────────────────────────
+# COOLDOWN DE RECONEXION
+# ─────────────────────────────────────────
+reconnect-cooldown:
+  enabled: true
+  # Segundos que debe esperar antes de volver a conectar
+  seconds: 5
+
+# ─────────────────────────────────────────
+# LOGS
+# ─────────────────────────────────────────
+logging:
+  enabled: true
+  # Archivo donde se guardan las conexiones
+  file: "plugins/CrossRealmMC/logs/connections.txt"
+  # Loguear entradas de Bedrock
+  log-bedrock-join: true
+  # Loguear entradas de Java
+  log-java-join: false
+  # Loguear desconexiones
+  log-disconnect: true
+
+# ─────────────────────────────────────────
+# DEBUG MODE
+# ─────────────────────────────────────────
+debug: false
+
+# ─────────────────────────────────────────
+# REINICIO AUTOMATICO DEL BRIDGE
+# ─────────────────────────────────────────
+auto-restart:
+  enabled: true
+  # Segundos antes de intentar reiniciar si el bridge cae
+  delay-seconds: 10
+
+# ─────────────────────────────────────────
+# CHAT
+# ─────────────────────────────────────────
+chat:
+  # Mostrar prefijo de edicion en el chat
+  show-edition-prefix: true
+  java-prefix: "&7[&aJava&7]"
+  bedrock-prefix: "&7[&bBedrock&7]"

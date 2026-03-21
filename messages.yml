@@ -1,0 +1,119 @@
+# ╔══════════════════════════════════════════════╗
+# ║         CrossRealmMC - messages.yml          ║
+# ╚══════════════════════════════════════════════╝
+
+es:
+  prefix: "&7[&bCrossRealmMC&7] "
+  plugin-enabled: "&aPlugin activado correctamente."
+  plugin-disabled: "&cPlugin desactivado."
+  bridge-started: "&aBridge Bedrock iniciado en el puerto &e{port}&a."
+  bridge-failed: "&cError al iniciar el bridge en el puerto &e{port}&c."
+  bridge-restarted: "&eEl bridge se reinicio automaticamente."
+
+  player-join-bedrock: "&7[&bBedrock&7] &a{player} &7se ha unido desde Bedrock &8({version})"
+  player-join-java: "&7[&aJava&7] &a{player} &7se ha unido desde Java"
+  player-leave: "&7{player} &7se ha desconectado."
+
+  version-not-supported: "&cTu version de Bedrock &e({version}) &cno esta soportada."
+  server-full-bedrock: "&cEl servidor llego al limite de jugadores Bedrock."
+  maintenance-bedrock: "&cEl acceso Bedrock esta en mantenimiento."
+  maintenance-java: "&cEl acceso Java esta en mantenimiento."
+
+  ban-success: "&aJugador &e{player} &abaneado correctamente. Edicion: &e{edition}"
+  ban-already: "&c{player} &cya esta baneado."
+  ban-not-found: "&cJugador &e{player} &cno encontrado."
+  unban-success: "&aJugador &e{player} &adesbanneado."
+  banned-message: "&cEstas baneado de este servidor."
+
+  anticheat-kick: "&cFuiste expulsado por comportamiento invalido."
+  reconnect-cooldown: "&cDebes esperar &e{seconds} &csegundos antes de reconectar."
+
+  cmd-reload: "&aConfiguracion recargada correctamente."
+  cmd-info: |
+    &b--- CrossRealmMC Info ---
+    &7Version: &a{version}
+    &7Jugadores Java: &a{java-players}
+    &7Jugadores Bedrock: &b{bedrock-players}
+    &7Bridge: &a{bridge-status}
+    &7Puerto Bedrock: &e{bedrock-port}
+    &7Modo online Java: &e{java-online}
+    &7Modo online Bedrock: &e{bedrock-online}
+  cmd-list: |
+    &b--- Jugadores Conectados ---
+    &aJava &7({java-count}): &f{java-list}
+    &bBedrock &7({bedrock-count}): &f{bedrock-list}
+  cmd-help: |
+    &b--- CrossRealmMC Comandos ---
+    &e/crmc info &7- Informacion del plugin
+    &e/crmc list &7- Lista de jugadores
+    &e/crmc reload &7- Recargar configuracion
+    &e/crmc ban <jugador> [java|bedrock] &7- Banear jugador
+    &e/crmc unban <jugador> &7- Desbanear jugador
+    &e/crmc stats &7- Estadisticas
+    &e/crmc maintenance <bedrock|java> <on|off> &7- Mantenimiento
+  cmd-stats: |
+    &b--- Estadisticas CrossRealmMC ---
+    &7Conexiones totales Bedrock: &b{total-bedrock}
+    &7Conexiones totales Java: &a{total-java}
+    &7Kicks por anticheat: &c{anticheat-kicks}
+    &7Bans activos: &c{active-bans}
+  no-permission: "&cNo tienes permiso para esto."
+  unknown-command: "&cSubcomando desconocido. Usa &e/crmc help"
+
+en:
+  prefix: "&7[&bCrossRealmMC&7] "
+  plugin-enabled: "&aPlugin enabled successfully."
+  plugin-disabled: "&cPlugin disabled."
+  bridge-started: "&aBedrock bridge started on port &e{port}&a."
+  bridge-failed: "&cFailed to start bridge on port &e{port}&c."
+  bridge-restarted: "&eBridge restarted automatically."
+
+  player-join-bedrock: "&7[&bBedrock&7] &a{player} &7joined from Bedrock &8({version})"
+  player-join-java: "&7[&aJava&7] &a{player} &7joined from Java"
+  player-leave: "&7{player} &7has disconnected."
+
+  version-not-supported: "&cYour Bedrock version &e({version}) &cis not supported."
+  server-full-bedrock: "&cThe server reached the Bedrock player limit."
+  maintenance-bedrock: "&cBedrock access is under maintenance."
+  maintenance-java: "&cJava access is under maintenance."
+
+  ban-success: "&aPlayer &e{player} &abanned successfully. Edition: &e{edition}"
+  ban-already: "&c{player} &cis already banned."
+  ban-not-found: "&cPlayer &e{player} &cnot found."
+  unban-success: "&aPlayer &e{player} &aunbanned."
+  banned-message: "&cYou are banned from this server."
+
+  anticheat-kick: "&cYou were kicked for invalid behavior."
+  reconnect-cooldown: "&cPlease wait &e{seconds} &cseconds before reconnecting."
+
+  cmd-reload: "&aConfiguration reloaded successfully."
+  cmd-info: |
+    &b--- CrossRealmMC Info ---
+    &7Version: &a{version}
+    &7Java Players: &a{java-players}
+    &7Bedrock Players: &b{bedrock-players}
+    &7Bridge: &a{bridge-status}
+    &7Bedrock Port: &e{bedrock-port}
+    &7Java Online Mode: &e{java-online}
+    &7Bedrock Online Mode: &e{bedrock-online}
+  cmd-list: |
+    &b--- Connected Players ---
+    &aJava &7({java-count}): &f{java-list}
+    &bBedrock &7({bedrock-count}): &f{bedrock-list}
+  cmd-help: |
+    &b--- CrossRealmMC Commands ---
+    &e/crmc info &7- Plugin information
+    &e/crmc list &7- Player list
+    &e/crmc reload &7- Reload configuration
+    &e/crmc ban <player> [java|bedrock] &7- Ban player
+    &e/crmc unban <player> &7- Unban player
+    &e/crmc stats &7- Statistics
+    &e/crmc maintenance <bedrock|java> <on|off> &7- Maintenance mode
+  cmd-stats: |
+    &b--- CrossRealmMC Statistics ---
+    &7Total Bedrock connections: &b{total-bedrock}
+    &7Total Java connections: &a{total-java}
+    &7Anticheat kicks: &c{anticheat-kicks}
+    &7Active bans: &c{active-bans}
+  no-permission: "&cYou don't have permission."
+  unknown-command: "&cUnknown subcommand. Use &e/crmc help"

@@ -1,0 +1,27 @@
+name: CrossRealmMC
+version: 1.0.0
+main: me.crossrealmmc.CrossRealmMC
+api-version: 1.21
+description: Professional Bedrock-Java Bridge — Standalone, no Geyser required
+author: CrossRealmMC
+
+softdepend:
+  - PlaceholderAPI
+
+commands:
+  crmc:
+    description: Comando principal de CrossRealmMC
+    usage: /crmc <subcomando>
+    permission: crossrealmmc.admin
+    aliases: [crossrealm, bridge]
+
+permissions:
+  crossrealmmc.admin:
+    description: Acceso total al plugin
+    default: op
+  crossrealmmc.bypass:
+    description: Bypass del anti-cheat
+    default: false
+  crossrealmmc.ban:
+    description: Permiso para banear por edicion
+    default: op
