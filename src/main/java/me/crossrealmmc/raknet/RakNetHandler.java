@@ -22,13 +22,13 @@ public class RakNetHandler extends SimpleChannelInboundHandler<DatagramPacket> {
     private final PacketTranslator translator;
     private int sendSequence = 0;
 
-    public static final byte ID_UNCONNECTED_PING            = 0x01;
-    public static final byte ID_UNCONNECTED_PING_OPEN       = 0x02;
-    public static final byte ID_OPEN_CONNECTION_REQUEST_1   = 0x05;
-    public static final byte ID_OPEN_CONNECTION_REQUEST_2   = 0x07;
-    public static final byte ID_ACK                         = (byte) 0xC0;
-    public static final byte ID_NACK                        = (byte) 0xA0;
-    public static final byte ID_DISCONNECTION_NOTIFICATION  = 0x15;
+    public static final byte ID_UNCONNECTED_PING           = 0x01;
+    public static final byte ID_UNCONNECTED_PING_OPEN      = 0x02;
+    public static final byte ID_OPEN_CONNECTION_REQUEST_1  = 0x05;
+    public static final byte ID_OPEN_CONNECTION_REQUEST_2  = 0x07;
+    public static final byte ID_ACK                        = (byte) 0xC0;
+    public static final byte ID_NACK                       = (byte) 0xA0;
+    public static final byte ID_DISCONNECTION_NOTIFICATION = 0x15;
 
     public RakNetHandler(CrossRealmMC plugin) {
         this.plugin = plugin;
@@ -93,16 +93,32 @@ public class RakNetHandler extends SimpleChannelInboundHandler<DatagramPacket> {
                 boolean isFragmented = (flags & 0x10) != 0;
                 int reliability = (flags >> 5) & 0x07;
 
-                if (reliability >= 2 && reliability <= 7) buf.skipBytes(3);
-                if (reliability == 1 || reliability == 4) buf.skipBytes(3);
-                if (reliability == 3 || reliability == 4 ||
-                    reliability == 6 || reliability == 7) buf.skipBytes(6);
+                // Reliable (2, 3, 4, 6, 7)
+                if (reliability == 2 || reliability == 3 ||
+                    reliability == 4 || reliability == 6 || reliability == 7) {
+                    if (!buf.isReadable(3)) return;
+                    buf.skipBytes(3);
+                }
+
+                // Sequenced (1, 4)
+                if (reliability == 1 || reliability == 4) {
+                    if (!buf.isReadable(3)) return;
+                    buf.skipBytes(3);
+                }
+
+                // Ordered (3, 4, 7)
+                if (reliability == 3 || reliability == 4 || reliability == 7) {
+                    if (!buf.isReadable(4)) return;
+                    buf.skipBytes(4);
+                }
+
+                // Fragmentado
                 if (isFragmented) {
-                    if (!buf.isReadable(10)) break;
+                    if (!buf.isReadable(10)) return;
                     buf.skipBytes(10);
                 }
-                if (!buf.isReadable(byteLength)) break;
 
+                if (!buf.isReadable(byteLength)) return;
                 ByteBuf payload = buf.readBytes(byteLength);
                 processGamePayload(ctx, payload, sender);
                 payload.release();
@@ -123,9 +139,8 @@ public class RakNetHandler extends SimpleChannelInboundHandler<DatagramPacket> {
         }
         if (firstByte == 0x13) {
             plugin.log("&aNewIncomingConnection: &f" + sender.getAddress().getHostAddress());
-            // Jugador conectado al nivel RakNet — proceder con login Bedrock
             BedrockPlayer player = registry.getOrCreate(sender);
-            plugin.log("&a✔ RakNet handshake completo para: &f" + sender.getAddress().getHostAddress());
+            plugin.log("&a✔ RakNet completo: &f" + sender.getAddress().getHostAddress());
             return;
         }
         if (firstByte == 0x15) {
@@ -192,7 +207,7 @@ public class RakNetHandler extends SimpleChannelInboundHandler<DatagramPacket> {
         ByteBuf frame = Unpooled.buffer();
         frame.writeByte(0x84);
         frame.writeMediumLE(sendSequence++);
-        frame.writeByte(0x40); // reliable
+        frame.writeByte(0x40);
         frame.writeShort(payload.readableBytes() * 8);
         frame.writeMediumLE(0);
         frame.writeBytes(payload);
@@ -203,9 +218,7 @@ public class RakNetHandler extends SimpleChannelInboundHandler<DatagramPacket> {
     private void handleUnconnectedPing(ChannelHandlerContext ctx, ByteBuf buf, InetSocketAddress sender) {
         long pingTime = buf.isReadable(8) ? buf.readLong() : System.currentTimeMillis();
         plugin.log("&aPing de: &f" + sender.getAddress().getHostAddress());
-        PacketUnconnectedPong pong = new PacketUnconnectedPong(plugin, pingTime);
-        ctx.writeAndFlush(new DatagramPacket(pong.encode(), sender));
-        plugin.log("&aPong enviado");
+        ctx.writeAndFlush(new DatagramPacket(new PacketUnconnectedPong(plugin, pingTime).encode(), sender));
     }
 
     private void handleOpenConnectionRequest1(ChannelHandlerContext ctx, ByteBuf buf, InetSocketAddress sender) {
@@ -231,8 +244,6 @@ public class RakNetHandler extends SimpleChannelInboundHandler<DatagramPacket> {
         long clientGuid = buf.readLong();
         long time = buf.readLong();
         plugin.log("&aConnectionRequest | GUID: &e" + clientGuid);
-
-        // Encapsular en FrameSet
         ByteBuf payload = new PacketConnectionRequestAccepted(sender, time).encode();
         sendFrameSet(ctx, sender, payload);
         plugin.log("&aConnectionRequestAccepted enviado en FrameSet");
