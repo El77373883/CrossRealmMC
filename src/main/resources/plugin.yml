@@ -3,10 +3,12 @@ version: 1.0.0
 main: me.crossrealmmc.CrossRealmMC
 api-version: 1.21
 description: Professional Bedrock-Java Bridge — Standalone, no Geyser required
-author: CrossRealmMC
+author: soyadrianyt001
 
 softdepend:
   - PlaceholderAPI
+  - ViaVersion
+  - ViaBackwards
 
 commands:
   crmc:
