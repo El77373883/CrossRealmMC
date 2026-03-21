@@ -38,6 +38,9 @@ public class CrossRealmMC extends JavaPlugin {
         this.antiCheat        = new AntiCheat(this);
         this.realmGate        = new RealmGate(this);
 
+        // Verificar configuracion antes de arrancar
+        if (!checkConfig()) return;
+
         Bukkit.getPluginManager().registerEvents(new PlayerListener(this), this);
 
         getCommand("crmc").setExecutor(new CRMCCommand(this));
@@ -46,6 +49,14 @@ public class CrossRealmMC extends JavaPlugin {
         if (Bukkit.getPluginManager().getPlugin("PlaceholderAPI") != null) {
             new CRMCPlaceholder(this).register();
             log("&aPlaceholderAPI &7detectado y registrado.");
+        }
+
+        if (Bukkit.getPluginManager().getPlugin("ViaVersion") != null) {
+            log("&aViaVersion &7detectado.");
+        }
+
+        if (Bukkit.getPluginManager().getPlugin("ViaBackwards") != null) {
+            log("&aViaBackwards &7detectado.");
         }
 
         this.rakNetServer = new RakNetServer(this);
@@ -61,6 +72,73 @@ public class CrossRealmMC extends JavaPlugin {
         printShutdown();
     }
 
+    // ─────────────────────────────────────────
+    // VERIFICACION DE CONFIG
+    // ─────────────────────────────────────────
+    private boolean checkConfig() {
+        boolean valid = true;
+
+        String javaIp = configManager.getJavaIp();
+        int javaPort  = configManager.getJavaPort();
+        int bedrockPort = configManager.getBedrockPort();
+
+        if (javaIp == null || javaIp.equals("TU_IP_AQUI") || javaIp.isEmpty()) {
+            printConfigError(
+                "§c  ✘  No has configurado la IP de tu servidor Java!",
+                "§7  Ve a §eplugins/CrossRealmMC/config.yml",
+                "§7  Busca: §eserver.java-ip",
+                "§7  Ponle la IP de tu servidor, ejemplo: §a192.168.1.1",
+                "§7  o si es local: §a127.0.0.1"
+            );
+            valid = false;
+        }
+
+        if (javaPort <= 0 || javaPort > 65535) {
+            printConfigError(
+                "§c  ✘  El puerto Java es invalido!",
+                "§7  Ve a §eplugins/CrossRealmMC/config.yml",
+                "§7  Busca: §eserver.java-port",
+                "§7  Ponle el puerto de tu servidor Java, ejemplo: §a25565"
+            );
+            valid = false;
+        }
+
+        if (bedrockPort <= 0 || bedrockPort > 65535) {
+            printConfigError(
+                "§c  ✘  El puerto Bedrock es invalido!",
+                "§7  Ve a §eplugins/CrossRealmMC/config.yml",
+                "§7  Busca: §eserver.bedrock-port",
+                "§7  Puerto recomendado: §a19132"
+            );
+            valid = false;
+        }
+
+        if (!valid) {
+            c("§8╔══════════════════════════════════════════════════════════════╗");
+            c("§8║  §c⚠  CrossRealmMC DETENIDO — Corrige la config y reinicia    §8║");
+            c("§8╚══════════════════════════════════════════════════════════════╝");
+        }
+
+        return valid;
+    }
+
+    private void printConfigError(String... lines) {
+        c("");
+        c("§8╔══════════════════════════════════════════════════════════════╗");
+        c("§8║  §e⚠  CrossRealmMC — Error de Configuracion                  §8║");
+        c("§8╠══════════════════════════════════════════════════════════════╣");
+        for (String line : lines) {
+            c("§8║  " + line);
+        }
+        c("§8╠══════════════════════════════════════════════════════════════╣");
+        c("§8║  §7Hecho por §bsoyadrianyt001                                  §8║");
+        c("§8╚══════════════════════════════════════════════════════════════╝");
+        c("");
+    }
+
+    // ─────────────────────────────────────────
+    // BANNER ULTRA PREMIUM
+    // ─────────────────────────────────────────
     private void printBanner() {
         String[] lines = {
             "",
@@ -85,7 +163,7 @@ public class CrossRealmMC extends JavaPlugin {
             "§8╚══════════════════════════════════════════════════════════════╝",
             ""
         };
-        for (String line : lines) Bukkit.getConsoleSender().sendMessage(line);
+        for (String line : lines) c(line);
     }
 
     private void printStartupDone() {
@@ -93,6 +171,7 @@ public class CrossRealmMC extends JavaPlugin {
         c("§8[§b✦ CrossRealmMC§8] §a ✔  Plugin cargado y listo.");
         c("§8[§b✦ CrossRealmMC§8] §7    Puerto Bedrock §8: §e" + configManager.getBedrockPort());
         c("§8[§b✦ CrossRealmMC§8] §7    Puerto Java    §8: §a" + configManager.getJavaPort());
+        c("§8[§b✦ CrossRealmMC§8] §7    IP Java        §8: §f" + configManager.getJavaIp());
         c("§8[§b✦ CrossRealmMC§8] §7    Online Java    §8: §f" + configManager.isJavaOnlineMode());
         c("§8[§b✦ CrossRealmMC§8] §7    Online Bedrock §8: §f" + configManager.isBedrockOnlineMode());
         c("§8[§b✦ CrossRealmMC§8] §7    Idioma         §8: §f" + configManager.getLanguage().toUpperCase());
