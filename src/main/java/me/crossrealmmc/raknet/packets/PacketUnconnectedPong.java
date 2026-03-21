@@ -10,10 +10,10 @@ public class PacketUnconnectedPong {
     private final CrossRealmMC plugin;
 
     // Protocolos soportados por version
-    private static final int PROTOCOL_26_3 = 924;
-    private static final int PROTOCOL_26_2 = 918;
-    private static final int PROTOCOL_26_1 = 912;
-    private static final int PROTOCOL_26_0 = 904;
+    private static final int PROTOCOL_26_3 = 748;
+    private static final int PROTOCOL_26_2 = 766;
+    private static final int PROTOCOL_26_1 = 771;
+    private static final int PROTOCOL_26_0 = 748;
 
     // Usamos el mas nuevo siempre
     private static final int BEDROCK_PROTOCOL = PROTOCOL_26_3;
