@@ -8,19 +8,18 @@ import org.bukkit.Bukkit;
 public class PacketUnconnectedPong {
 
     private final CrossRealmMC plugin;
+    private final long pingTime;
 
-    // Protocolos soportados por version
-    private static final int PROTOCOL_26_3 = 748;
-    private static final int PROTOCOL_26_2 = 766;
-    private static final int PROTOCOL_26_1 = 771;
-    private static final int PROTOCOL_26_0 = 748;
-
-    // Usamos el mas nuevo siempre
-    private static final int BEDROCK_PROTOCOL = PROTOCOL_26_3;
+    private static final int BEDROCK_PROTOCOL = 924;
     private static final String BEDROCK_VERSION = "26.3";
 
-    public PacketUnconnectedPong(CrossRealmMC plugin) {
+    public PacketUnconnectedPong(CrossRealmMC plugin, long pingTime) {
         this.plugin = plugin;
+        this.pingTime = pingTime;
+    }
+
+    public PacketUnconnectedPong(CrossRealmMC plugin) {
+        this(plugin, System.currentTimeMillis());
     }
 
     public ByteBuf encode() {
@@ -31,7 +30,6 @@ public class PacketUnconnectedPong {
         int online = Bukkit.getOnlinePlayers().size();
         int max = Bukkit.getMaxPlayers();
 
-        // Formato oficial MCPE MOTD
         String serverName = "MCPE"
                 + ";" + motd1
                 + ";" + BEDROCK_PROTOCOL
@@ -40,10 +38,12 @@ public class PacketUnconnectedPong {
                 + ";" + max
                 + ";" + RakNetServer.SERVER_GUID
                 + ";" + motd2
-                + ";Survival;1;19132;19133;";
+                + ";Survival;1;"
+                + plugin.getConfigManager().getBedrockPort()
+                + ";19133;";
 
-        buf.writeByte(0x1C); // ID_UNCONNECTED_PONG
-        buf.writeLong(System.currentTimeMillis());
+        buf.writeByte(0x1C);
+        buf.writeLong(pingTime);
         buf.writeLong(RakNetServer.SERVER_GUID);
         PacketUtils.writeMagic(buf);
 
