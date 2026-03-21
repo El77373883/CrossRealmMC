@@ -4,19 +4,16 @@ main: me.crossrealmmc.CrossRealmMC
 api-version: 1.21
 description: Professional Bedrock-Java Bridge — Standalone, no Geyser required
 author: soyadrianyt001
-
 softdepend:
   - PlaceholderAPI
   - ViaVersion
   - ViaBackwards
-
 commands:
   crmc:
     description: Comando principal de CrossRealmMC
     usage: /crmc <subcomando>
     permission: crossrealmmc.admin
     aliases: [crossrealm, bridge]
-
 permissions:
   crossrealmmc.admin:
     description: Acceso total al plugin
