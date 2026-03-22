@@ -86,23 +86,20 @@ public class PacketTranslator {
             int protocol = buf.readInt();
             plugin.debugLog("RequestNetworkSettings | Protocolo: " + protocol);
 
-            // NetworkSettings — packet ID correcto 0x8F
             ByteBuf payload = Unpooled.buffer();
             BedrockLoginHandler.writeVarInt(payload, 0x8F);
-            payload.writeShortLE(0);     // compression_threshold
-            payload.writeShortLE(0);     // compression_algorithm = zlib
-            payload.writeBoolean(false); // client_throttle_enabled
-            payload.writeByte(0);        // client_throttle_threshold
-            payload.writeFloatLE(0);     // client_throttle_scalar
+            payload.writeShortLE(0);
+            payload.writeShortLE(0);
+            payload.writeBoolean(false);
+            payload.writeByte(0);
+            payload.writeFloatLE(0);
 
-            // Envolver en 0xFE
             ByteBuf gamePacket = Unpooled.buffer();
             gamePacket.writeByte(0xFE);
             BedrockLoginHandler.writeVarInt(gamePacket, payload.readableBytes());
             gamePacket.writeBytes(payload);
             payload.release();
 
-            // Reliable ordered
             ByteBuf frame = Unpooled.buffer();
             frame.writeByte(0x84);
             frame.writeMediumLE(sendSequence.getAndIncrement());
@@ -115,7 +112,10 @@ public class PacketTranslator {
             gamePacket.release();
 
             ctx.writeAndFlush(new DatagramPacket(frame, sender));
-            plugin.debugLog("NetworkSettings enviado | ID=0x8F");
+
+            // Cambiar estado para que el proximo batch lea el byte de algoritmo
+            player.setState(BedrockPlayer.State.LOGIN);
+            plugin.debugLog("NetworkSettings enviado | estado → LOGIN");
         } catch (Exception e) {
             plugin.debugLog("Error NetworkSettings: " + e.getMessage());
         }
@@ -195,7 +195,7 @@ public class PacketTranslator {
         long value = 0;
         int size = 0;
         int b;
-        while (((b = buf.readByte()) & 0x80) == 0x80) {
+        while (((b & buf.readByte()) & 0x80) == 0x80) {
             value |= (long)(b & 0x7F) << (size++ * 7);
             if (size > 10) return value;
         }
