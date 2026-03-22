@@ -1,6 +1,7 @@
 package me.crossrealmmc.bedrock;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 import me.crossrealmmc.CrossRealmMC;
 
 import java.net.InetSocketAddress;
@@ -38,42 +39,54 @@ public class PacketTranslator {
             case PACKET_LOGIN:
                 loginHandler.handleLoginPacket(ctx, buf, sender, player);
                 break;
-
             case PACKET_RESOURCE_PACK_RESP:
                 loginHandler.handleResourcePackResponse(ctx, buf, sender, player);
                 break;
-
             case PACKET_MOVE_PLAYER:
                 handleMovePlayer(buf, player);
                 break;
-
             case PACKET_CHAT:
                 handleChat(buf, player);
                 break;
-
             case PACKET_ANIMATE:
                 handleAnimate(buf, player);
                 break;
-
             case PACKET_REQUEST_CHUNK_RADIUS:
                 handleChunkRadius(ctx, buf, sender, player, loginHandler);
                 break;
-
             case PACKET_DISCONNECT:
                 handleDisconnect(sender, player);
                 break;
-
             case PACKET_PLAYER_ACTION:
                 handlePlayerAction(buf, player);
                 break;
-
-            case 0xC1: // DetectedLogin — ignorar
-                plugin.debugLog("DetectedLogin 0xC1 ignorado");
+            case 0xC1: // RequestNetworkSettings
+                handleRequestNetworkSettings(ctx, buf, sender, player, loginHandler);
                 break;
-
             default:
                 plugin.debugLog("Paquete no manejado: 0x" + String.format("%02X", packetId));
                 break;
+        }
+    }
+
+    private void handleRequestNetworkSettings(
+            io.netty.channel.ChannelHandlerContext ctx,
+            ByteBuf buf, InetSocketAddress sender,
+            BedrockPlayer player, BedrockLoginHandler loginHandler) {
+        try {
+            int protocol = buf.readInt();
+            plugin.debugLog("RequestNetworkSettings | Protocolo: " + protocol);
+            ByteBuf resp = Unpooled.buffer();
+            BedrockLoginHandler.writeVarInt(resp, 0x0F);
+            resp.writeShortLE(512);
+            resp.writeShortLE(0);
+            resp.writeBoolean(false);
+            resp.writeByte(0);
+            resp.writeFloatLE(0);
+            loginHandler.sendGamePacketPublic(ctx, sender, resp);
+            plugin.debugLog("NetworkSettings enviado");
+        } catch (Exception e) {
+            plugin.debugLog("Error NetworkSettings: " + e.getMessage());
         }
     }
 
@@ -81,23 +94,22 @@ public class PacketTranslator {
         if (!buf.isReadable(28)) return;
         try {
             long runtimeId = readVarLong(buf);
-            float x   = buf.readFloatLE();
-            float y   = buf.readFloatLE();
-            float z   = buf.readFloatLE();
-            float yaw = buf.readFloatLE();
+            float x     = buf.readFloatLE();
+            float y     = buf.readFloatLE();
+            float z     = buf.readFloatLE();
+            float yaw   = buf.readFloatLE();
             float pitch = buf.readFloatLE();
             player.setPosition(x, y, z);
             player.setRotation(yaw, pitch);
-            plugin.debugLog("Move: " + player.getUsername() + " → " + x + "," + y + "," + z);
         } catch (Exception ignored) {}
     }
 
     private void handleChat(ByteBuf buf, BedrockPlayer player) {
         if (player.getUsername() == null) return;
         try {
-            String type = readString(buf);
+            String type   = readString(buf);
             String source = readString(buf);
-            String msg = readString(buf);
+            String msg    = readString(buf);
             if (msg != null && !msg.isEmpty()) {
                 String prefix = plugin.getConfigManager().getBedrockChatPrefix();
                 final String finalMsg = msg;
