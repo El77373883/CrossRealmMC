@@ -272,7 +272,6 @@ public class BedrockLoginHandler {
             payload.readBytes(data);
             payload.release();
 
-            // Comprimir con zlib
             Deflater deflater = new Deflater();
             deflater.setInput(data);
             deflater.finish();
@@ -280,10 +279,11 @@ public class BedrockLoginHandler {
             int compressedLen = deflater.deflate(compressed);
             deflater.end();
 
+            // Formato correcto: 0xFE | algorithm(0x00=zlib) | compressed data
+            // Sin VarInt de longitud
             ByteBuf gamePacket = Unpooled.buffer();
             gamePacket.writeByte(0xFE);
-            writeVarInt(gamePacket, compressedLen + 1); // +1 por el byte de algoritmo
-            gamePacket.writeByte(0x00); // algorithm = zlib
+            gamePacket.writeByte(0x00);
             gamePacket.writeBytes(compressed, 0, compressedLen);
 
             ByteBuf frame = Unpooled.buffer();
