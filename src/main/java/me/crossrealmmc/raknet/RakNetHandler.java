@@ -24,7 +24,6 @@ public class RakNetHandler extends SimpleChannelInboundHandler<DatagramPacket> {
     private final PacketTranslator translator;
     private int sendSequence = 0;
 
-    // Fragmentos
     private final Map<Integer, byte[][]> fragmentBuffers = new HashMap<>();
     private final Map<Integer, Integer> fragmentCounts   = new HashMap<>();
 
@@ -100,6 +99,9 @@ public class RakNetHandler extends SimpleChannelInboundHandler<DatagramPacket> {
                 boolean isFragmented = (flags & 0x10) != 0;
                 int reliability = (flags >> 5) & 0x07;
 
+                plugin.log("&eFrame: flags=&f" + flags + " &erel=&f" + reliability
+                    + " &efrag=&f" + isFragmented + " &esize=&f" + byteLength);
+
                 if (reliability == 2 || reliability == 3 ||
                     reliability == 4 || reliability == 6 || reliability == 7) {
                     if (!buf.isReadable(3)) return;
@@ -119,6 +121,10 @@ public class RakNetHandler extends SimpleChannelInboundHandler<DatagramPacket> {
                     int fragmentSize  = buf.readInt();
                     int fragmentId    = buf.readShort() & 0xFFFF;
                     int fragmentIndex = buf.readInt();
+
+                    plugin.log("&eFragmento: id=&f" + fragmentId + " &eindex=&f" + fragmentIndex
+                        + " &etotal=&f" + fragmentSize + " &erecibidos=&f"
+                        + fragmentCounts.getOrDefault(fragmentId, 0));
 
                     if (!buf.isReadable(byteLength)) return;
                     byte[] fragmentData = new byte[byteLength];
