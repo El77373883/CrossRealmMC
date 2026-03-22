@@ -11,7 +11,7 @@ import java.nio.charset.StandardCharsets;
 public class PacketTranslator {
 
     private final CrossRealmMC plugin;
-    private int sendSequence = 0;
+    private int sendSequence = 100;
 
     public static final int PACKET_LOGIN                = 0x01;
     public static final int PACKET_RESOURCE_PACK_RESP   = 0x08;
@@ -62,7 +62,7 @@ public class PacketTranslator {
             case PACKET_PLAYER_ACTION:
                 handlePlayerAction(buf, player);
                 break;
-            case 0xC1: // RequestNetworkSettings
+            case 0xC1:
                 handleRequestNetworkSettings(ctx, buf, sender, player, loginHandler);
                 break;
             default:
@@ -79,23 +79,20 @@ public class PacketTranslator {
             int protocol = buf.readInt();
             plugin.debugLog("RequestNetworkSettings | Protocolo: " + protocol);
 
-            // Payload NetworkSettings
             ByteBuf payload = Unpooled.buffer();
             BedrockLoginHandler.writeVarInt(payload, 0x0F);
-            payload.writeShortLE(0);     // sin compresion
-            payload.writeShortLE(0);     // compression algorithm
+            payload.writeShortLE(0);
+            payload.writeShortLE(0);
             payload.writeBoolean(false);
             payload.writeByte(0);
             payload.writeFloatLE(0);
 
-            // Envolver en 0xFE
             ByteBuf gamePacket = Unpooled.buffer();
             gamePacket.writeByte(0xFE);
             BedrockLoginHandler.writeVarInt(gamePacket, payload.readableBytes());
             gamePacket.writeBytes(payload);
             payload.release();
 
-            // Enviar en FrameSet
             ByteBuf frame = Unpooled.buffer();
             frame.writeByte(0x84);
             frame.writeMediumLE(sendSequence++);
@@ -106,7 +103,7 @@ public class PacketTranslator {
             gamePacket.release();
 
             ctx.writeAndFlush(new DatagramPacket(frame, sender));
-            plugin.debugLog("NetworkSettings enviado en FrameSet");
+            plugin.debugLog("NetworkSettings enviado en FrameSet seq=" + (sendSequence - 1));
         } catch (Exception e) {
             plugin.debugLog("Error NetworkSettings: " + e.getMessage());
         }
