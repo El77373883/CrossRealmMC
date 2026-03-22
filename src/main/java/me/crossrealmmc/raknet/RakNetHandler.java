@@ -48,7 +48,6 @@ public class RakNetHandler extends SimpleChannelInboundHandler<DatagramPacket> {
         plugin.log("&ePaquete: &f0x" + String.format("%02X", packetId & 0xFF)
                 + " &7de &f" + sender.getAddress().getHostAddress());
 
-        // FrameSet 0x80-0x8F y tambien 0xC1
         if ((packetId & 0xFF) >= 0x80 && (packetId & 0xFF) <= 0x8F ||
             (packetId & 0xFF) == 0xC1) {
             buf.readByte();
@@ -126,7 +125,6 @@ public class RakNetHandler extends SimpleChannelInboundHandler<DatagramPacket> {
         if (!payload.isReadable()) return;
         byte firstByte = payload.getByte(payload.readerIndex());
 
-        // ConnectedPing → ConnectedPong
         if (firstByte == 0x00) {
             payload.readByte();
             if (payload.isReadable(8)) {
@@ -139,7 +137,6 @@ public class RakNetHandler extends SimpleChannelInboundHandler<DatagramPacket> {
             }
             return;
         }
-
         if (firstByte == 0x09) {
             payload.readByte();
             handleConnectionRequest(ctx, payload, sender);
@@ -165,40 +162,17 @@ public class RakNetHandler extends SimpleChannelInboundHandler<DatagramPacket> {
 
     private void handleBatchPacket(ChannelHandlerContext ctx, ByteBuf buf, InetSocketAddress sender) {
         try {
-            byte[] compressed = new byte[buf.readableBytes()];
-            buf.readBytes(compressed);
-            byte[] decompressed = decompress(compressed);
-            if (decompressed == null) return;
-            ByteBuf decompressedBuf = Unpooled.wrappedBuffer(decompressed);
+            // Sin compresion — leer directamente
             BedrockPlayer player = registry.getOrCreate(sender);
-            while (decompressedBuf.isReadable()) {
-                int packetLength = PacketTranslator.readVarInt(decompressedBuf);
-                if (packetLength <= 0 || !decompressedBuf.isReadable(packetLength)) break;
-                ByteBuf packetBuf = decompressedBuf.readBytes(packetLength);
+            while (buf.isReadable()) {
+                int packetLength = PacketTranslator.readVarInt(buf);
+                if (packetLength <= 0 || !buf.isReadable(packetLength)) break;
+                ByteBuf packetBuf = buf.readBytes(packetLength);
                 translator.handleIncoming(packetBuf, sender, player, loginHandler, ctx);
                 packetBuf.release();
             }
-            decompressedBuf.release();
         } catch (Exception e) {
             plugin.log("&cError batch: &f" + e.getMessage());
-        }
-    }
-
-    private byte[] decompress(byte[] data) {
-        try {
-            java.util.zip.Inflater inflater = new java.util.zip.Inflater(true);
-            inflater.setInput(data);
-            byte[] buffer = new byte[65536];
-            java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream();
-            while (!inflater.finished()) {
-                int count = inflater.inflate(buffer);
-                if (count == 0) break;
-                out.write(buffer, 0, count);
-            }
-            inflater.end();
-            return out.toByteArray();
-        } catch (Exception e) {
-            return data;
         }
     }
 
