@@ -5,15 +5,15 @@
 
 server:
   java-ip: "127.0.0.1"
-  java-port: 25565
+  java-port: 26573
   bedrock-ip: "0.0.0.0"
-  bedrock-port: 19132
+  bedrock-port: 30000
   motd-line1: "&bCrossRealmMC &7| Java + Bedrock"
   motd-line2: "&aConecta desde cualquier edicion!"
   max-bedrock-players: 0
 
 authentication:
-  java-online-mode: true
+  java-online-mode: false
   bedrock-online-mode: false
   bedrock-prefix: "."
 
@@ -44,7 +44,7 @@ logging:
   log-java-join: false
   log-disconnect: true
 
-debug: false
+debug: true
 
 auto-restart:
   enabled: true
