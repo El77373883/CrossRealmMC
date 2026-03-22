@@ -230,6 +230,7 @@ public class BedrockLoginHandler {
 
         sendBiomeDefinitionList(ctx, sender);
         sendAvailableEntityIdentifiers(ctx, sender);
+        sendCreativeContent(ctx, sender);
 
         Bukkit.getScheduler().runTaskLaterAsynchronously(plugin, () -> {
             sendSetTime(ctx, sender);
@@ -258,10 +259,10 @@ public class BedrockLoginHandler {
     private void sendBiomeDefinitionList(ChannelHandlerContext ctx, InetSocketAddress sender) {
         ByteBuf buf = Unpooled.buffer();
         writeVarInt(buf, 0x7A);
-        buf.writeByte(0x0A); // TAG_Compound
-        buf.writeByte(0x00); // nombre vacío
+        buf.writeByte(0x0A);
         buf.writeByte(0x00);
-        buf.writeByte(0x00); // TAG_End
+        buf.writeByte(0x00);
+        buf.writeByte(0x00);
         sendGamePacket(ctx, sender, buf);
         plugin.log("&aBiomeDefinitionList enviado");
     }
@@ -275,6 +276,14 @@ public class BedrockLoginHandler {
         buf.writeByte(0x00);
         sendGamePacket(ctx, sender, buf);
         plugin.log("&aAvailableEntityIdentifiers enviado");
+    }
+
+    private void sendCreativeContent(ChannelHandlerContext ctx, InetSocketAddress sender) {
+        ByteBuf buf = Unpooled.buffer();
+        writeVarInt(buf, 0x91);
+        writeVarInt(buf, 0); // 0 items
+        sendGamePacket(ctx, sender, buf);
+        plugin.log("&aCreativeContent enviado");
     }
 
     private void sendChunkRadiusReply(ChannelHandlerContext ctx, InetSocketAddress sender, int radius) {
