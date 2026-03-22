@@ -86,7 +86,6 @@ public class PacketTranslator {
             int protocol = buf.readInt();
             plugin.debugLog("RequestNetworkSettings | Protocolo: " + protocol);
 
-            // Usar sendGamePacketPublic para que quede en cache del RakNetHandler
             ByteBuf payload = Unpooled.buffer();
             BedrockLoginHandler.writeVarInt(payload, 0x8F);
             payload.writeShortLE(0);
@@ -95,7 +94,8 @@ public class PacketTranslator {
             payload.writeByte(0);
             payload.writeFloatLE(0);
 
-            loginHandler.sendGamePacketPublic(ctx, sender, payload);
+            // Sin byte de algoritmo
+            loginHandler.sendRawGamePacketPublic(ctx, sender, payload);
 
             player.setState(BedrockPlayer.State.LOGIN);
             plugin.debugLog("NetworkSettings enviado | estado → LOGIN");
