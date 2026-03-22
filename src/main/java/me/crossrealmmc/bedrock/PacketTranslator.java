@@ -72,6 +72,12 @@ public class PacketTranslator {
             case 0xC1:
                 handleRequestNetworkSettings(ctx, buf, sender, player, loginHandler);
                 break;
+            case 0x71:
+                plugin.debugLog("SetLocalPlayerAsInitialized de: " + player.getUsername());
+                break;
+            case 0x81:
+                plugin.debugLog("ClientCacheStatus recibido");
+                break;
             default:
                 plugin.debugLog("Paquete no manejado: 0x" + String.format("%02X", packetId));
                 break;
@@ -94,7 +100,6 @@ public class PacketTranslator {
             payload.writeByte(0);
             payload.writeFloatLE(0);
 
-            // Sin byte de algoritmo
             loginHandler.sendRawGamePacketPublic(ctx, sender, payload);
 
             player.setState(BedrockPlayer.State.LOGIN);
