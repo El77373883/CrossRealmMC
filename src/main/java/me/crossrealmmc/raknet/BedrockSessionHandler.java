@@ -13,7 +13,6 @@ public class BedrockSessionHandler extends SimpleChannelInboundHandler<ByteBuf> 
 
     private final CrossRealmMC plugin;
     private final AtomicInteger sendSequence = new AtomicInteger(0);
-    private final AtomicInteger orderIndex = new AtomicInteger(0);
     private BedrockLoginHandler loginHandler;
     private PacketTranslator translator;
     private BedrockPlayer player;
@@ -50,13 +49,8 @@ public class BedrockSessionHandler extends SimpleChannelInboundHandler<ByteBuf> 
     protected void channelRead0(ChannelHandlerContext ctx, ByteBuf buf) {
         if (player == null || sender == null) return;
         try {
-            while (buf.isReadable()) {
-                int packetLength = PacketTranslator.readVarInt(buf);
-                if (packetLength <= 0 || !buf.isReadable(packetLength)) break;
-                ByteBuf packetBuf = buf.readBytes(packetLength);
-                translator.handleIncoming(packetBuf, sender, player, loginHandler, ctx);
-                packetBuf.release();
-            }
+            // La libreria ya desenvuelve RakNet — pasar directo al translator
+            translator.handleIncoming(buf, sender, player, loginHandler, ctx);
         } catch (Exception e) {
             plugin.log("&cError sesion: &f" + e.getMessage());
         }
