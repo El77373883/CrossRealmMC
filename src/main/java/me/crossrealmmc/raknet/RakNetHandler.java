@@ -13,6 +13,8 @@ import me.crossrealmmc.bedrock.PacketTranslator;
 import me.crossrealmmc.raknet.packets.*;
 
 import java.net.InetSocketAddress;
+import java.util.HashMap;
+import java.util.Map;
 
 public class RakNetHandler extends SimpleChannelInboundHandler<DatagramPacket> {
 
@@ -21,6 +23,10 @@ public class RakNetHandler extends SimpleChannelInboundHandler<DatagramPacket> {
     private final BedrockLoginHandler loginHandler;
     private final PacketTranslator translator;
     private int sendSequence = 0;
+
+    // Fragmentos
+    private final Map<Integer, byte[][]> fragmentBuffers = new HashMap<>();
+    private final Map<Integer, Integer> fragmentCounts   = new HashMap<>();
 
     public static final byte ID_UNCONNECTED_PING           = 0x01;
     public static final byte ID_UNCONNECTED_PING_OPEN      = 0x02;
@@ -88,9 +94,9 @@ public class RakNetHandler extends SimpleChannelInboundHandler<DatagramPacket> {
 
             while (buf.isReadable()) {
                 if (!buf.isReadable(3)) break;
-                int flags = buf.readByte() & 0xFF;
-                int bitLength = buf.readShort() & 0xFFFF;
-                int byteLength = (bitLength + 7) / 8;
+                int flags       = buf.readByte() & 0xFF;
+                int bitLength   = buf.readShort() & 0xFFFF;
+                int byteLength  = (bitLength + 7) / 8;
                 boolean isFragmented = (flags & 0x10) != 0;
                 int reliability = (flags >> 5) & 0x07;
 
@@ -107,10 +113,35 @@ public class RakNetHandler extends SimpleChannelInboundHandler<DatagramPacket> {
                     if (!buf.isReadable(4)) return;
                     buf.skipBytes(4);
                 }
+
                 if (isFragmented) {
                     if (!buf.isReadable(10)) return;
-                    buf.skipBytes(10);
+                    int fragmentSize  = buf.readInt();
+                    int fragmentId    = buf.readShort() & 0xFFFF;
+                    int fragmentIndex = buf.readInt();
+
+                    if (!buf.isReadable(byteLength)) return;
+                    byte[] fragmentData = new byte[byteLength];
+                    buf.readBytes(fragmentData);
+
+                    fragmentBuffers.computeIfAbsent(fragmentId, k -> new byte[fragmentSize][]);
+                    fragmentBuffers.get(fragmentId)[fragmentIndex] = fragmentData;
+                    fragmentCounts.merge(fragmentId, 1, Integer::sum);
+
+                    if (fragmentCounts.get(fragmentId) == fragmentSize) {
+                        byte[][] parts = fragmentBuffers.remove(fragmentId);
+                        fragmentCounts.remove(fragmentId);
+                        int totalSize = 0;
+                        for (byte[] part : parts) totalSize += part.length;
+                        ByteBuf assembled = Unpooled.buffer(totalSize);
+                        for (byte[] part : parts) assembled.writeBytes(part);
+                        plugin.log("&aFragmento ensamblado: &e" + totalSize + " bytes");
+                        processGamePayload(ctx, assembled, sender);
+                        assembled.release();
+                    }
+                    continue;
                 }
+
                 if (!buf.isReadable(byteLength)) return;
                 ByteBuf payload = buf.readBytes(byteLength);
                 processGamePayload(ctx, payload, sender);
@@ -162,7 +193,6 @@ public class RakNetHandler extends SimpleChannelInboundHandler<DatagramPacket> {
 
     private void handleBatchPacket(ChannelHandlerContext ctx, ByteBuf buf, InetSocketAddress sender) {
         try {
-            // Sin compresion — leer directamente
             BedrockPlayer player = registry.getOrCreate(sender);
             while (buf.isReadable()) {
                 int packetLength = PacketTranslator.readVarInt(buf);
