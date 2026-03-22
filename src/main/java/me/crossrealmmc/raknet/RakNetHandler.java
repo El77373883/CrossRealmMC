@@ -205,14 +205,28 @@ public class RakNetHandler extends SimpleChannelInboundHandler<DatagramPacket> {
     private void handleBatchPacket(ChannelHandlerContext ctx, ByteBuf buf, InetSocketAddress sender) {
         try {
             BedrockPlayer player = registry.getOrCreate(sender);
+            if (!buf.isReadable()) return;
+
+            // Leer byte de algoritmo de compresion
+            int algorithm = buf.readByte() & 0xFF;
+            plugin.debugLog("Batch algoritmo: 0x" + String.format("%02X", algorithm));
 
             byte[] data = new byte[buf.readableBytes()];
             buf.readBytes(data);
 
-            plugin.debugLog("Batch recibido: &e" + data.length + " bytes | primer byte: 0x"
-                + String.format("%02X", data[0] & 0xFF));
-
-            byte[] decompressed = tryDecompress(data);
+            byte[] decompressed;
+            if (algorithm == 0xFF) {
+                // Sin compresion
+                plugin.log("&aSin compresion: &e" + data.length + " bytes");
+                decompressed = data;
+            } else if (algorithm == 0x00) {
+                // Zlib
+                decompressed = tryDecompress(data);
+            } else {
+                plugin.debugLog("Algoritmo desconocido: 0x" + String.format("%02X", algorithm)
+                    + " intentando sin compresion");
+                decompressed = data;
+            }
 
             ByteBuf decompressedBuf = Unpooled.wrappedBuffer(decompressed);
             while (decompressedBuf.isReadable()) {
@@ -230,7 +244,6 @@ public class RakNetHandler extends SimpleChannelInboundHandler<DatagramPacket> {
     }
 
     private byte[] tryDecompress(byte[] data) {
-        // Intentar zlib normal
         try {
             Inflater inflater = new Inflater();
             inflater.setInput(data);
@@ -250,30 +263,6 @@ public class RakNetHandler extends SimpleChannelInboundHandler<DatagramPacket> {
         } catch (Exception e) {
             plugin.debugLog("zlib fallo: " + e.getMessage());
         }
-
-        // Intentar raw deflate
-        try {
-            Inflater inflater = new Inflater(true);
-            inflater.setInput(data);
-            byte[] buffer = new byte[131072];
-            ByteArrayOutputStream out = new ByteArrayOutputStream();
-            while (!inflater.finished()) {
-                int count = inflater.inflate(buffer);
-                if (count == 0) break;
-                out.write(buffer, 0, count);
-            }
-            inflater.end();
-            byte[] result = out.toByteArray();
-            if (result.length > 0) {
-                plugin.log("&aDescomprimido raw deflate: &e" + data.length + " → " + result.length + " bytes");
-                return result;
-            }
-        } catch (Exception e) {
-            plugin.debugLog("raw deflate fallo: " + e.getMessage());
-        }
-
-        plugin.log("&eSin compresion: &f" + data.length + " bytes | primer byte: 0x"
-            + String.format("%02X", data[0] & 0xFF));
         return data;
     }
 
