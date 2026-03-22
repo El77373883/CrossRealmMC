@@ -116,10 +116,11 @@ public class BedrockLoginHandler {
     private void sendResourcePacksInfo(ChannelHandlerContext ctx, InetSocketAddress sender) {
         ByteBuf buf = Unpooled.buffer();
         writeVarInt(buf, PACKET_RESOURCE_PACKS_INFO);
-        buf.writeBoolean(false);
-        buf.writeBoolean(false);
-        buf.writeShortLE(0);
-        buf.writeShortLE(0);
+        buf.writeBoolean(false); // mustAccept
+        buf.writeBoolean(false); // hasScripts
+        buf.writeBoolean(false); // forceServerPacks (nuevo en 1.21)
+        buf.writeShortLE(0);     // behavior pack count
+        buf.writeShortLE(0);     // resource pack count
         sendGamePacket(ctx, sender, buf);
         plugin.log("&aResourcePacksInfo enviado");
     }
