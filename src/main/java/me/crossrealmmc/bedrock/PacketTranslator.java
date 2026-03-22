@@ -2,6 +2,7 @@ package me.crossrealmmc.bedrock;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import io.netty.channel.socket.DatagramPacket;
 import me.crossrealmmc.CrossRealmMC;
 
 import java.net.InetSocketAddress;
@@ -10,6 +11,7 @@ import java.nio.charset.StandardCharsets;
 public class PacketTranslator {
 
     private final CrossRealmMC plugin;
+    private int sendSequence = 0;
 
     public static final int PACKET_LOGIN                = 0x01;
     public static final int PACKET_RESOURCE_PACK_RESP   = 0x08;
@@ -76,15 +78,35 @@ public class PacketTranslator {
         try {
             int protocol = buf.readInt();
             plugin.debugLog("RequestNetworkSettings | Protocolo: " + protocol);
-            ByteBuf resp = Unpooled.buffer();
-            BedrockLoginHandler.writeVarInt(resp, 0x0F);
-            resp.writeShortLE(0);    // sin compresión
-            resp.writeShortLE(0);    // compression algorithm
-            resp.writeBoolean(false);
-            resp.writeByte(0);
-            resp.writeFloatLE(0);
-            loginHandler.sendGamePacketPublic(ctx, sender, resp);
-            plugin.debugLog("NetworkSettings enviado");
+
+            // Payload NetworkSettings
+            ByteBuf payload = Unpooled.buffer();
+            BedrockLoginHandler.writeVarInt(payload, 0x0F);
+            payload.writeShortLE(0);     // sin compresion
+            payload.writeShortLE(0);     // compression algorithm
+            payload.writeBoolean(false);
+            payload.writeByte(0);
+            payload.writeFloatLE(0);
+
+            // Envolver en 0xFE
+            ByteBuf gamePacket = Unpooled.buffer();
+            gamePacket.writeByte(0xFE);
+            BedrockLoginHandler.writeVarInt(gamePacket, payload.readableBytes());
+            gamePacket.writeBytes(payload);
+            payload.release();
+
+            // Enviar en FrameSet
+            ByteBuf frame = Unpooled.buffer();
+            frame.writeByte(0x84);
+            frame.writeMediumLE(sendSequence++);
+            frame.writeByte(0x40);
+            frame.writeShort(gamePacket.readableBytes() * 8);
+            frame.writeMediumLE(0);
+            frame.writeBytes(gamePacket);
+            gamePacket.release();
+
+            ctx.writeAndFlush(new DatagramPacket(frame, sender));
+            plugin.debugLog("NetworkSettings enviado en FrameSet");
         } catch (Exception e) {
             plugin.debugLog("Error NetworkSettings: " + e.getMessage());
         }
