@@ -61,6 +61,7 @@ public class BedrockLoginHandler {
                 plugin.getPlayerDetector().registerPlayer(uuid, PlayerDetector.PlayerType.BEDROCK, "26.3");
                 sendPlayStatus(ctx, sender, STATUS_LOGIN_SUCCESS);
                 sendResourcePacksInfo(ctx, sender);
+                sendStartGame(ctx, sender, player); // bypass ResourcePack flow
                 return;
             }
 
@@ -88,6 +89,7 @@ public class BedrockLoginHandler {
             plugin.getPlayerDetector().registerPlayer(auth.uuid, PlayerDetector.PlayerType.BEDROCK, "26.3");
             sendPlayStatus(ctx, sender, STATUS_LOGIN_SUCCESS);
             sendResourcePacksInfo(ctx, sender);
+            sendStartGame(ctx, sender, player); // bypass ResourcePack flow
 
         } catch (Exception e) {
             plugin.log("&cError en login: &f" + e.getMessage());
@@ -269,8 +271,8 @@ public class BedrockLoginHandler {
         try {
             ByteBuf gamePacket = Unpooled.buffer();
             gamePacket.writeByte(0xFE);
-            writeVarInt(gamePacket, payload.readableBytes() + 1); // +1 por byte 0xFF
-            gamePacket.writeByte(0xFF); // sin compresion
+            writeVarInt(gamePacket, payload.readableBytes() + 1);
+            gamePacket.writeByte(0xFF);
             gamePacket.writeBytes(payload);
             payload.release();
 
