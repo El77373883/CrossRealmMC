@@ -31,9 +31,7 @@ public class RakNetHandler extends SimpleChannelInboundHandler<DatagramPacket> {
 
     private final Map<Integer, byte[][]> fragmentBuffers = new HashMap<>();
     private final Map<Integer, Integer>  fragmentCounts  = new HashMap<>();
-
-    // Cache de paquetes enviados para retransmision por NACK
-    private final Map<Integer, byte[]> sentPacketCache = new HashMap<>();
+    private final Map<Integer, byte[]>   sentPacketCache = new HashMap<>();
 
     public static final byte ID_UNCONNECTED_PING           = 0x01;
     public static final byte ID_UNCONNECTED_PING_OPEN      = 0x02;
@@ -99,10 +97,9 @@ public class RakNetHandler extends SimpleChannelInboundHandler<DatagramPacket> {
     private void handleAck(ByteBuf buf) {
         try {
             if (!buf.isReadable(3)) return;
-            buf.readShort(); // count
-            buf.readByte();  // single sequence
+            buf.readShort();
+            buf.readByte();
             int seqNum = buf.readMediumLE();
-            // Liberar del cache cuando se confirma recepcion
             sentPacketCache.remove(seqNum);
         } catch (Exception ignored) {}
     }
@@ -341,7 +338,6 @@ public class RakNetHandler extends SimpleChannelInboundHandler<DatagramPacket> {
         frame.writeBytes(payload);
         payload.release();
 
-        // Cachear para retransmision
         byte[] frameBytes = new byte[frame.readableBytes()];
         frame.getBytes(0, frameBytes);
         sentPacketCache.put(seqNum, frameBytes);
@@ -362,7 +358,6 @@ public class RakNetHandler extends SimpleChannelInboundHandler<DatagramPacket> {
         frame.writeBytes(payload);
         payload.release();
 
-        // Cachear para retransmision
         byte[] frameBytes = new byte[frame.readableBytes()];
         frame.getBytes(0, frameBytes);
         sentPacketCache.put(seqNum, frameBytes);
@@ -395,6 +390,13 @@ public class RakNetHandler extends SimpleChannelInboundHandler<DatagramPacket> {
         messageIndex.set(0);
         orderIndex.set(0);
         sentPacketCache.clear();
+
+        // Resetear estado del jugador para nueva conexion
+        BedrockPlayer existingPlayer = registry.get(sender);
+        if (existingPlayer != null) {
+            existingPlayer.setState(BedrockPlayer.State.HANDSHAKING);
+        }
+
         ctx.writeAndFlush(new DatagramPacket(
             new PacketOpenConnectionReply2(sender, mtu, clientGuid).encode(), sender));
     }
