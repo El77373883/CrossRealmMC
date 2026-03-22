@@ -255,7 +255,12 @@ public class RakNetHandler extends SimpleChannelInboundHandler<DatagramPacket> {
         short mtu = buf.readShort();
         long clientGuid = buf.readLong();
         plugin.log("&aOCR2 | MTU: &e" + mtu + " &7GUID: &e" + clientGuid);
-        ctx.writeAndFlush(new DatagramPacket(new PacketOpenConnectionReply2(sender, mtu, clientGuid).encode(), sender));
+
+        // Resetear secuencia para nueva conexion
+        sendSequence.set(0);
+
+        ctx.writeAndFlush(new DatagramPacket(
+            new PacketOpenConnectionReply2(sender, mtu, clientGuid).encode(), sender));
     }
 
     private void handleConnectionRequest(ChannelHandlerContext ctx, ByteBuf buf, InetSocketAddress sender) {
