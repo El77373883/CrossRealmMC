@@ -12,7 +12,6 @@ import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.zip.Deflater;
 
 public class BedrockLoginHandler {
 
@@ -268,23 +267,11 @@ public class BedrockLoginHandler {
 
     private void sendGamePacket(ChannelHandlerContext ctx, InetSocketAddress sender, ByteBuf payload) {
         try {
-            byte[] data = new byte[payload.readableBytes()];
-            payload.readBytes(data);
-            payload.release();
-
-            Deflater deflater = new Deflater();
-            deflater.setInput(data);
-            deflater.finish();
-            byte[] compressed = new byte[data.length + 100];
-            int compressedLen = deflater.deflate(compressed);
-            deflater.end();
-
-            // Formato correcto: 0xFE | algorithm(0x00=zlib) | compressed data
-            // Sin VarInt de longitud
             ByteBuf gamePacket = Unpooled.buffer();
             gamePacket.writeByte(0xFE);
-            gamePacket.writeByte(0x00);
-            gamePacket.writeBytes(compressed, 0, compressedLen);
+            gamePacket.writeByte(0xFF); // sin compresion
+            gamePacket.writeBytes(payload);
+            payload.release();
 
             ByteBuf frame = Unpooled.buffer();
             frame.writeByte(0x84);
