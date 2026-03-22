@@ -49,8 +49,18 @@ public class BedrockSessionHandler extends SimpleChannelInboundHandler<ByteBuf> 
     protected void channelRead0(ChannelHandlerContext ctx, ByteBuf buf) {
         if (player == null || sender == null) return;
         try {
-            // La libreria ya desenvuelve RakNet — pasar directo al translator
-            translator.handleIncoming(buf, sender, player, loginHandler, ctx);
+            // Skipear byte 0xFE si esta presente
+            if (buf.isReadable() && (buf.getByte(buf.readerIndex()) & 0xFF) == 0xFE) {
+                buf.readByte();
+            }
+            // Leer paquetes
+            while (buf.isReadable()) {
+                int packetLength = PacketTranslator.readVarInt(buf);
+                if (packetLength <= 0 || !buf.isReadable(packetLength)) break;
+                ByteBuf packetBuf = buf.readBytes(packetLength);
+                translator.handleIncoming(packetBuf, sender, player, loginHandler, ctx);
+                packetBuf.release();
+            }
         } catch (Exception e) {
             plugin.log("&cError sesion: &f" + e.getMessage());
         }
