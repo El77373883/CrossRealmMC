@@ -30,7 +30,6 @@ public class PacketUnconnectedPong {
         int online = Bukkit.getOnlinePlayers().size();
         int max = Bukkit.getMaxPlayers();
 
-        // Formato exacto que usa Geyser
         String serverName = "MCPE" + ";"
                 + motd1 + ";"
                 + BEDROCK_PROTOCOL + ";"
