@@ -89,15 +89,14 @@ public class PacketTranslator {
             ByteBuf payload = Unpooled.buffer();
             BedrockLoginHandler.writeVarInt(payload, 0x8F);
             payload.writeShortLE(0);
-            payload.writeShortLE(0);
+            payload.writeShortLE(0xFF); // sin compresion
             payload.writeBoolean(false);
             payload.writeByte(0);
             payload.writeFloatLE(0);
 
             ByteBuf gamePacket = Unpooled.buffer();
             gamePacket.writeByte(0xFE);
-            BedrockLoginHandler.writeVarInt(gamePacket, payload.readableBytes());
-            gamePacket.writeBytes(payload);
+            gamePacket.writeBytes(payload); // sin VarInt de longitud
             payload.release();
 
             ByteBuf frame = Unpooled.buffer();
@@ -113,7 +112,6 @@ public class PacketTranslator {
 
             ctx.writeAndFlush(new DatagramPacket(frame, sender));
 
-            // Cambiar estado para que el proximo batch lea el byte de algoritmo
             player.setState(BedrockPlayer.State.LOGIN);
             plugin.debugLog("NetworkSettings enviado | estado → LOGIN");
         } catch (Exception e) {
