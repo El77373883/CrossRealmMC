@@ -43,7 +43,7 @@ public class RakNetHandler extends SimpleChannelInboundHandler<DatagramPacket> {
     public RakNetHandler(CrossRealmMC plugin) {
         this.plugin = plugin;
         this.registry = new BedrockPlayerRegistry();
-        this.loginHandler = new BedrockLoginHandler(plugin, sendSequence);
+        this.loginHandler = new BedrockLoginHandler(plugin, sendSequence, messageIndex, orderIndex);
         this.translator = new PacketTranslator(plugin, sendSequence, messageIndex, orderIndex);
     }
 
@@ -210,13 +210,11 @@ public class RakNetHandler extends SimpleChannelInboundHandler<DatagramPacket> {
             byte[] decompressed;
 
             if (player.getState() == BedrockPlayer.State.HANDSHAKING) {
-                // Antes de NetworkSettings NO hay byte de algoritmo
                 byte[] data = new byte[buf.readableBytes()];
                 buf.readBytes(data);
                 plugin.debugLog("Batch HANDSHAKING sin algoritmo: " + data.length + " bytes");
                 decompressed = data;
             } else {
-                // Despues de NetworkSettings SI hay byte de algoritmo
                 int algorithm = buf.readByte() & 0xFF;
                 plugin.debugLog("Batch algoritmo: 0x" + String.format("%02X", algorithm));
                 byte[] data = new byte[buf.readableBytes()];
