@@ -2,7 +2,6 @@ package me.crossrealmmc.bedrock;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
-import io.netty.channel.socket.DatagramPacket;
 import me.crossrealmmc.CrossRealmMC;
 
 import java.net.InetSocketAddress;
@@ -64,52 +63,9 @@ public class PacketTranslator {
             case PACKET_PLAYER_ACTION:
                 handlePlayerAction(buf, player);
                 break;
-            case 0xC1:
-                handleRequestNetworkSettings(ctx, buf, sender, player, loginHandler);
-                break;
             default:
                 plugin.debugLog("Paquete no manejado: 0x" + String.format("%02X", packetId));
                 break;
-        }
-    }
-
-    private void handleRequestNetworkSettings(
-            io.netty.channel.ChannelHandlerContext ctx,
-            ByteBuf buf, InetSocketAddress sender,
-            BedrockPlayer player, BedrockLoginHandler loginHandler) {
-        try {
-            int protocol = buf.readInt();
-            plugin.debugLog("RequestNetworkSettings | Protocolo: " + protocol);
-
-            ByteBuf payload = Unpooled.buffer();
-            BedrockLoginHandler.writeVarInt(payload, 0x0F);
-            payload.writeShortLE(0);   // threshold=0
-            payload.writeShortLE(0);   // algorithm=zlib
-            payload.writeBoolean(false);
-            payload.writeByte(0);
-            payload.writeFloatLE(0);
-
-            ByteBuf gamePacket = Unpooled.buffer();
-            gamePacket.writeByte(0xFE);
-            BedrockLoginHandler.writeVarInt(gamePacket, payload.readableBytes());
-            gamePacket.writeBytes(payload);
-            payload.release();
-
-            ByteBuf frame = Unpooled.buffer();
-            frame.writeByte(0x84);
-            frame.writeMediumLE(sendSequence.getAndIncrement());
-            frame.writeByte(0x60);                        // reliable ordered
-            frame.writeShort(gamePacket.readableBytes() * 8);
-            frame.writeMediumLE(0);                       // message index
-            frame.writeMediumLE(0);                       // order index
-            frame.writeByte(0);                           // order channel
-            frame.writeBytes(gamePacket);
-            gamePacket.release();
-
-            ctx.writeAndFlush(new DatagramPacket(frame, sender));
-            plugin.debugLog("NetworkSettings enviado | reliable ordered");
-        } catch (Exception e) {
-            plugin.debugLog("Error NetworkSettings: " + e.getMessage());
         }
     }
 
