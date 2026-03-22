@@ -149,7 +149,7 @@ public class BedrockLoginHandler {
             player.getState() == BedrockPlayer.State.SPAWNING) return;
 
         player.setState(BedrockPlayer.State.SPAWNING);
-        player.setPosition(0, 64, 0);
+        player.setPosition(0, 4, 0); // Y=4 dentro del subchunk
         plugin.log("&aEnviando StartGame a: &e" + player.getUsername());
 
         ByteBuf buf = Unpooled.buffer();
@@ -158,7 +158,7 @@ public class BedrockLoginHandler {
         writeVarLong(buf, player.getEntityId());
         writeVarInt(buf, 0);
         buf.writeFloatLE(0);
-        buf.writeFloatLE(64);
+        buf.writeFloatLE(4); // Y=4
         buf.writeFloatLE(0);
         buf.writeFloatLE(0);
         buf.writeFloatLE(0);
@@ -312,17 +312,13 @@ public class BedrockLoginHandler {
         try {
             ByteBuf chunkData = Unpooled.buffer();
 
-            // Subchunk version 8 con 2 capas
             chunkData.writeByte(8);  // version
             chunkData.writeByte(2);  // 2 layers
-            // Layer 0 - bloques (aire)
             chunkData.writeByte(0);  // bits per block = 0
             writeVarInt(chunkData, 0); // air = 0
-            // Layer 1 - waterlogged (vacío)
             chunkData.writeByte(0);
             writeVarInt(chunkData, 0);
 
-            // 25 biomas
             for (int i = 0; i < 25; i++) {
                 chunkData.writeByte(0x00);
                 writeVarInt(chunkData, 1);
@@ -357,7 +353,7 @@ public class BedrockLoginHandler {
         ByteBuf buf = Unpooled.buffer();
         writeVarInt(buf, PACKET_RESPAWN);
         buf.writeFloatLE(0);
-        buf.writeFloatLE(64);
+        buf.writeFloatLE(4); // Y=4
         buf.writeFloatLE(0);
         buf.writeByte(0);
         writeVarLong(buf, player.getEntityId());
