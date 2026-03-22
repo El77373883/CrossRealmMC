@@ -13,10 +13,10 @@ public class PacketOpenConnectionReply1 {
 
     public ByteBuf encode() {
         ByteBuf buf = PacketUtils.newBuffer();
-        buf.writeByte(0x06); // ID_OPEN_CONNECTION_REPLY_1
+        buf.writeByte(0x06);
         PacketUtils.writeMagic(buf);
         buf.writeLong(RakNetServer.SERVER_GUID);
-        buf.writeBoolean(false); // security
+        buf.writeBoolean(false);
         buf.writeShort(mtu);
         return buf;
     }
