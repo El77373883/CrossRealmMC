@@ -2,6 +2,7 @@ package me.crossrealmmc.bedrock;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import io.netty.channel.socket.DatagramPacket;
 import me.crossrealmmc.CrossRealmMC;
 
 import java.net.InetSocketAddress;
@@ -12,6 +13,7 @@ public class PacketTranslator {
 
     private final CrossRealmMC plugin;
     private final AtomicInteger sendSequence;
+    private final AtomicInteger orderIndex = new AtomicInteger(0);
 
     public static final int PACKET_LOGIN                = 0x01;
     public static final int PACKET_RESOURCE_PACK_RESP   = 0x08;
@@ -63,8 +65,8 @@ public class PacketTranslator {
             case PACKET_PLAYER_ACTION:
                 handlePlayerAction(buf, player);
                 break;
-            case 0xC1: // RequestNetworkSettings
-                handleRequestNetworkSettings(ctx, buf, player, loginHandler);
+            case 0xC1:
+                handleRequestNetworkSettings(ctx, buf, sender, player, loginHandler);
                 break;
             default:
                 plugin.debugLog("Paquete no manejado: 0x" + String.format("%02X", packetId));
@@ -74,12 +76,13 @@ public class PacketTranslator {
 
     private void handleRequestNetworkSettings(
             io.netty.channel.ChannelHandlerContext ctx,
-            ByteBuf buf, BedrockPlayer player,
-            BedrockLoginHandler loginHandler) {
+            ByteBuf buf, InetSocketAddress sender,
+            BedrockPlayer player, BedrockLoginHandler loginHandler) {
         try {
             int protocol = buf.readInt();
             plugin.debugLog("RequestNetworkSettings | Protocolo: " + protocol);
 
+            // Payload NetworkSettings
             ByteBuf payload = Unpooled.buffer();
             BedrockLoginHandler.writeVarInt(payload, 0x0F);
             payload.writeShortLE(0);   // threshold=0
@@ -88,8 +91,27 @@ public class PacketTranslator {
             payload.writeByte(0);
             payload.writeFloatLE(0);
 
-            loginHandler.sendGamePacketPublic(ctx, null, payload);
-            plugin.debugLog("NetworkSettings enviado");
+            // Envolver en 0xFE
+            ByteBuf gamePacket = Unpooled.buffer();
+            gamePacket.writeByte(0xFE);
+            BedrockLoginHandler.writeVarInt(gamePacket, payload.readableBytes());
+            gamePacket.writeBytes(payload);
+            payload.release();
+
+            // Enviar en FrameSet reliable ordered
+            ByteBuf frame = Unpooled.buffer();
+            frame.writeByte(0x84);
+            frame.writeMediumLE(sendSequence.getAndIncrement());
+            frame.writeByte(0x60);                         // reliable ordered
+            frame.writeShort(gamePacket.readableBytes() * 8);
+            frame.writeMediumLE(0);                        // message index
+            frame.writeMediumLE(orderIndex.getAndIncrement()); // order index
+            frame.writeByte(0);                            // order channel
+            frame.writeBytes(gamePacket);
+            gamePacket.release();
+
+            ctx.writeAndFlush(new DatagramPacket(frame, sender));
+            plugin.debugLog("NetworkSettings enviado | reliable ordered");
         } catch (Exception e) {
             plugin.debugLog("Error NetworkSettings: " + e.getMessage());
         }
