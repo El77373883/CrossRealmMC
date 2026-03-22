@@ -107,7 +107,7 @@ public class BedrockLoginHandler {
         ByteBuf buf = Unpooled.buffer();
         writeVarInt(buf, PACKET_PLAY_STATUS);
         buf.writeInt(status);
-        sendGamePacket(ctx, sender, buf);
+        sendGamePacketPublic(ctx, sender, buf);
         plugin.log("&aPlayStatus enviado: &e" + status);
     }
 
@@ -118,7 +118,7 @@ public class BedrockLoginHandler {
         buf.writeBoolean(false);
         buf.writeShortLE(0);
         buf.writeShortLE(0);
-        sendGamePacket(ctx, sender, buf);
+        sendGamePacketPublic(ctx, sender, buf);
         plugin.log("&aResourcePacksInfo enviado");
     }
 
@@ -131,7 +131,7 @@ public class BedrockLoginHandler {
         writeString(buf, "26.3");
         buf.writeIntLE(0);
         buf.writeBoolean(false);
-        sendGamePacket(ctx, sender, buf);
+        sendGamePacketPublic(ctx, sender, buf);
         plugin.log("&aResourcePackStack enviado");
     }
 
@@ -216,7 +216,7 @@ public class BedrockLoginHandler {
         buf.writeBoolean(false);
         buf.writeBoolean(false);
 
-        sendGamePacket(ctx, sender, buf);
+        sendGamePacketPublic(ctx, sender, buf);
         plugin.log("&aStartGame enviado");
 
         Bukkit.getScheduler().runTaskLaterAsynchronously(plugin, () -> {
@@ -245,7 +245,7 @@ public class BedrockLoginHandler {
         ByteBuf buf = Unpooled.buffer();
         writeVarInt(buf, PACKET_SET_TIME);
         writeVarInt(buf, 6000);
-        sendGamePacket(ctx, sender, buf);
+        sendGamePacketPublic(ctx, sender, buf);
     }
 
     private void sendRespawn(ChannelHandlerContext ctx, InetSocketAddress sender, BedrockPlayer player) {
@@ -256,10 +256,10 @@ public class BedrockLoginHandler {
         buf.writeFloatLE(0);
         buf.writeByte(0);
         writeVarLong(buf, player.getEntityId());
-        sendGamePacket(ctx, sender, buf);
+        sendGamePacketPublic(ctx, sender, buf);
     }
 
-    private void sendGamePacket(ChannelHandlerContext ctx, InetSocketAddress sender, ByteBuf payload) {
+    public void sendGamePacketPublic(ChannelHandlerContext ctx, InetSocketAddress sender, ByteBuf payload) {
         try {
             ByteBuf wrapper = Unpooled.buffer();
             writeVarInt(wrapper, payload.readableBytes());
