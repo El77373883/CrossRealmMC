@@ -83,8 +83,8 @@ public class PacketTranslator {
 
             ByteBuf payload = Unpooled.buffer();
             BedrockLoginHandler.writeVarInt(payload, 0x0F);
-            payload.writeShortLE(0);
-            payload.writeShortLE(0);
+            payload.writeShortLE(0);     // compression threshold
+            payload.writeShortLE(255);   // algorithm = 255 = sin compresion
             payload.writeBoolean(false);
             payload.writeByte(0);
             payload.writeFloatLE(0);
@@ -105,7 +105,7 @@ public class PacketTranslator {
             gamePacket.release();
 
             ctx.writeAndFlush(new DatagramPacket(frame, sender));
-            plugin.debugLog("NetworkSettings enviado en FrameSet seq=" + (sendSequence.get() - 1));
+            plugin.debugLog("NetworkSettings enviado | sin compresion");
         } catch (Exception e) {
             plugin.debugLog("Error NetworkSettings: " + e.getMessage());
         }
