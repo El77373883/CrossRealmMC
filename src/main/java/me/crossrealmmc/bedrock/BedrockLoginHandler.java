@@ -311,25 +311,21 @@ public class BedrockLoginHandler {
     private void sendEmptyChunk(ChannelHandlerContext ctx, InetSocketAddress sender, int chunkX, int chunkZ) {
         try {
             ByteBuf chunkData = Unpooled.buffer();
-
-            // 1 subchunk de aire
-            chunkData.writeByte(8);    // subchunk version
-            chunkData.writeByte(0);    // 0 layers (aire)
-
-            // 25 secciones de bioma
+            chunkData.writeByte(8);
+            chunkData.writeByte(0);
             for (int i = 0; i < 25; i++) {
                 chunkData.writeByte(0x00);
                 writeVarInt(chunkData, 1);
             }
-            writeVarInt(chunkData, 0); // border blocks
+            writeVarInt(chunkData, 0);
 
             ByteBuf buf = Unpooled.buffer();
             writeVarInt(buf, PACKET_LEVEL_CHUNK);
             writeZigZagInt(buf, chunkX);
             writeZigZagInt(buf, chunkZ);
-            writeVarInt(buf, 0);      // overworld
-            writeVarInt(buf, 1);      // 1 subchunk
-            buf.writeBoolean(false);  // cache disabled
+            writeVarInt(buf, 0);
+            writeVarInt(buf, 1);
+            buf.writeBoolean(false);
             writeVarInt(buf, chunkData.readableBytes());
             buf.writeBytes(chunkData);
             chunkData.release();
@@ -381,6 +377,32 @@ public class BedrockLoginHandler {
             ctx.writeAndFlush(new DatagramPacket(frame, sender));
         } catch (Exception e) {
             plugin.log("&cError enviando paquete: &f" + e.getMessage());
+        }
+    }
+
+    // Para paquetes sin byte de algoritmo (NetworkSettings)
+    public void sendRawGamePacketPublic(ChannelHandlerContext ctx, InetSocketAddress sender, ByteBuf payload) {
+        try {
+            ByteBuf gamePacket = Unpooled.buffer();
+            gamePacket.writeByte(0xFE);
+            writeVarInt(gamePacket, payload.readableBytes());
+            gamePacket.writeBytes(payload);
+            payload.release();
+
+            ByteBuf frame = Unpooled.buffer();
+            frame.writeByte(0x84);
+            frame.writeMediumLE(sendSequence.getAndIncrement());
+            frame.writeByte(0x60);
+            frame.writeShort(gamePacket.readableBytes() * 8);
+            frame.writeMediumLE(messageIndex.getAndIncrement());
+            frame.writeMediumLE(orderIndex.getAndIncrement());
+            frame.writeByte(0);
+            frame.writeBytes(gamePacket);
+            gamePacket.release();
+
+            ctx.writeAndFlush(new DatagramPacket(frame, sender));
+        } catch (Exception e) {
+            plugin.log("&cError enviando raw: &f" + e.getMessage());
         }
     }
 
