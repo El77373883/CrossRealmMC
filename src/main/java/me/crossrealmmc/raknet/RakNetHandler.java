@@ -12,10 +12,12 @@ import me.crossrealmmc.bedrock.BedrockPlayerRegistry;
 import me.crossrealmmc.bedrock.PacketTranslator;
 import me.crossrealmmc.raknet.packets.*;
 
+import java.io.ByteArrayOutputStream;
 import java.net.InetSocketAddress;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.zip.Inflater;
 
 public class RakNetHandler extends SimpleChannelInboundHandler<DatagramPacket> {
 
@@ -201,16 +203,45 @@ public class RakNetHandler extends SimpleChannelInboundHandler<DatagramPacket> {
     private void handleBatchPacket(ChannelHandlerContext ctx, ByteBuf buf, InetSocketAddress sender) {
         try {
             BedrockPlayer player = registry.getOrCreate(sender);
-            while (buf.isReadable()) {
-                int packetLength = PacketTranslator.readVarInt(buf);
-                if (packetLength <= 0 || !buf.isReadable(packetLength)) break;
-                ByteBuf packetBuf = buf.readBytes(packetLength);
+            byte[] data = new byte[buf.readableBytes()];
+            buf.readBytes(data);
+
+            // Intentar descomprimir con zlib
+            byte[] decompressed = tryDecompress(data);
+
+            ByteBuf decompressedBuf = Unpooled.wrappedBuffer(decompressed);
+            while (decompressedBuf.isReadable()) {
+                int packetLength = PacketTranslator.readVarInt(decompressedBuf);
+                if (packetLength <= 0 || !decompressedBuf.isReadable(packetLength)) break;
+                ByteBuf packetBuf = decompressedBuf.readBytes(packetLength);
                 translator.handleIncoming(packetBuf, sender, player, loginHandler, ctx);
                 packetBuf.release();
             }
+            decompressedBuf.release();
         } catch (Exception e) {
             plugin.log("&cError batch: &f" + e.getMessage());
         }
+    }
+
+    private byte[] tryDecompress(byte[] data) {
+        try {
+            Inflater inflater = new Inflater();
+            inflater.setInput(data);
+            byte[] buffer = new byte[65536];
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            while (!inflater.finished()) {
+                int count = inflater.inflate(buffer);
+                if (count == 0) break;
+                out.write(buffer, 0, count);
+            }
+            inflater.end();
+            byte[] result = out.toByteArray();
+            if (result.length > 0) {
+                plugin.log("&aDescomprimido: &e" + data.length + " → " + result.length + " bytes");
+                return result;
+            }
+        } catch (Exception ignored) {}
+        return data;
     }
 
     private void sendAck(ChannelHandlerContext ctx, InetSocketAddress sender, int seqNum) {
@@ -255,10 +286,7 @@ public class RakNetHandler extends SimpleChannelInboundHandler<DatagramPacket> {
         short mtu = buf.readShort();
         long clientGuid = buf.readLong();
         plugin.log("&aOCR2 | MTU: &e" + mtu + " &7GUID: &e" + clientGuid);
-
-        // Resetear secuencia para nueva conexion
         sendSequence.set(0);
-
         ctx.writeAndFlush(new DatagramPacket(
             new PacketOpenConnectionReply2(sender, mtu, clientGuid).encode(), sender));
     }
