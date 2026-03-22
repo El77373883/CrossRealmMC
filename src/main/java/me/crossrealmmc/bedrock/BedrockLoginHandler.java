@@ -17,6 +17,7 @@ public class BedrockLoginHandler {
 
     private final CrossRealmMC plugin;
     private final AtomicInteger sendSequence;
+    private final AtomicInteger orderIndex = new AtomicInteger(0);
 
     public static final int PACKET_LOGIN               = 0x01;
     public static final int PACKET_PLAY_STATUS         = 0x02;
@@ -273,9 +274,11 @@ public class BedrockLoginHandler {
             ByteBuf frame = Unpooled.buffer();
             frame.writeByte(0x84);
             frame.writeMediumLE(sendSequence.getAndIncrement());
-            frame.writeByte(0x40);
+            frame.writeByte(0x60);                              // reliable ordered
             frame.writeShort(gamePacket.readableBytes() * 8);
-            frame.writeMediumLE(0);
+            frame.writeMediumLE(0);                             // message index
+            frame.writeMediumLE(orderIndex.getAndIncrement());  // order index
+            frame.writeByte(0);                                 // order channel
             frame.writeBytes(gamePacket);
             gamePacket.release();
 
