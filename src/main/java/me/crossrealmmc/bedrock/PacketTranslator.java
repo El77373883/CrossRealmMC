@@ -86,6 +86,7 @@ public class PacketTranslator {
             int protocol = buf.readInt();
             plugin.debugLog("RequestNetworkSettings | Protocolo: " + protocol);
 
+            // Usar sendGamePacketPublic para que quede en cache del RakNetHandler
             ByteBuf payload = Unpooled.buffer();
             BedrockLoginHandler.writeVarInt(payload, 0x8F);
             payload.writeShortLE(0);
@@ -94,24 +95,7 @@ public class PacketTranslator {
             payload.writeByte(0);
             payload.writeFloatLE(0);
 
-            ByteBuf gamePacket = Unpooled.buffer();
-            gamePacket.writeByte(0xFE);
-            BedrockLoginHandler.writeVarInt(gamePacket, payload.readableBytes());
-            gamePacket.writeBytes(payload);
-            payload.release();
-
-            ByteBuf frame = Unpooled.buffer();
-            frame.writeByte(0x84);
-            frame.writeMediumLE(sendSequence.getAndIncrement());
-            frame.writeByte(0x60);
-            frame.writeShort(gamePacket.readableBytes() * 8);
-            frame.writeMediumLE(messageIndex.getAndIncrement());
-            frame.writeMediumLE(orderIndex.getAndIncrement());
-            frame.writeByte(0);
-            frame.writeBytes(gamePacket);
-            gamePacket.release();
-
-            ctx.writeAndFlush(new DatagramPacket(frame, sender));
+            loginHandler.sendGamePacketPublic(ctx, sender, payload);
 
             player.setState(BedrockPlayer.State.LOGIN);
             plugin.debugLog("NetworkSettings enviado | estado → LOGIN");
@@ -160,7 +144,6 @@ public class PacketTranslator {
         int radius = readVarInt(buf);
         plugin.debugLog("ChunkRadius request de: " + player.getUsername() + " radio: " + radius);
 
-        // Siempre responder con ChunkRadiusReply
         ByteBuf reply = Unpooled.buffer();
         BedrockLoginHandler.writeVarInt(reply, 0x46);
         BedrockLoginHandler.writeVarInt(reply, 1);
