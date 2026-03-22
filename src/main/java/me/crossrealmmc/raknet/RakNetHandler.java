@@ -30,7 +30,10 @@ public class RakNetHandler extends SimpleChannelInboundHandler<DatagramPacket> {
     private final AtomicInteger orderIndex   = new AtomicInteger(0);
 
     private final Map<Integer, byte[][]> fragmentBuffers = new HashMap<>();
-    private final Map<Integer, Integer> fragmentCounts   = new HashMap<>();
+    private final Map<Integer, Integer>  fragmentCounts  = new HashMap<>();
+
+    // Cache de paquetes enviados para retransmision por NACK
+    private final Map<Integer, byte[]> sentPacketCache = new HashMap<>();
 
     public static final byte ID_UNCONNECTED_PING           = 0x01;
     public static final byte ID_UNCONNECTED_PING_OPEN      = 0x02;
@@ -79,7 +82,10 @@ public class RakNetHandler extends SimpleChannelInboundHandler<DatagramPacket> {
                 handleOpenConnectionRequest2(ctx, buf, sender);
                 break;
             case ID_ACK:
+                handleAck(buf);
+                break;
             case ID_NACK:
+                handleNack(ctx, buf, sender);
                 break;
             case ID_DISCONNECTION_NOTIFICATION:
                 handleDisconnect(sender);
@@ -87,6 +93,53 @@ public class RakNetHandler extends SimpleChannelInboundHandler<DatagramPacket> {
             default:
                 plugin.log("&cDesconocido: &f0x" + String.format("%02X", packetId & 0xFF));
                 break;
+        }
+    }
+
+    private void handleAck(ByteBuf buf) {
+        try {
+            if (!buf.isReadable(3)) return;
+            buf.readShort(); // count
+            buf.readByte();  // single sequence
+            int seqNum = buf.readMediumLE();
+            // Liberar del cache cuando se confirma recepcion
+            sentPacketCache.remove(seqNum);
+        } catch (Exception ignored) {}
+    }
+
+    private void handleNack(ChannelHandlerContext ctx, ByteBuf buf, InetSocketAddress sender) {
+        try {
+            plugin.debugLog("NACK recibido de: " + sender.getAddress().getHostAddress());
+            if (!buf.isReadable(3)) return;
+            int count = buf.readShort() & 0xFFFF;
+            for (int i = 0; i < count; i++) {
+                if (!buf.isReadable(1)) break;
+                boolean single = buf.readByte() != 0;
+                if (single) {
+                    if (!buf.isReadable(3)) break;
+                    int seqNum = buf.readMediumLE();
+                    retransmit(ctx, sender, seqNum);
+                } else {
+                    if (!buf.isReadable(6)) break;
+                    int start = buf.readMediumLE();
+                    int end   = buf.readMediumLE();
+                    for (int seq = start; seq <= end; seq++) {
+                        retransmit(ctx, sender, seq);
+                    }
+                }
+            }
+        } catch (Exception e) {
+            plugin.debugLog("Error NACK: " + e.getMessage());
+        }
+    }
+
+    private void retransmit(ChannelHandlerContext ctx, InetSocketAddress sender, int seqNum) {
+        byte[] cached = sentPacketCache.get(seqNum);
+        if (cached != null) {
+            plugin.debugLog("Retransmitiendo seq: " + seqNum);
+            ctx.writeAndFlush(new DatagramPacket(Unpooled.wrappedBuffer(cached), sender));
+        } else {
+            plugin.debugLog("NACK seq " + seqNum + " no encontrado en cache");
         }
     }
 
@@ -278,21 +331,29 @@ public class RakNetHandler extends SimpleChannelInboundHandler<DatagramPacket> {
     }
 
     private void sendFrameSet(ChannelHandlerContext ctx, InetSocketAddress sender, ByteBuf payload) {
+        int seqNum = sendSequence.getAndIncrement();
         ByteBuf frame = Unpooled.buffer();
         frame.writeByte(0x84);
-        frame.writeMediumLE(sendSequence.getAndIncrement());
+        frame.writeMediumLE(seqNum);
         frame.writeByte(0x40);
         frame.writeShort(payload.readableBytes() * 8);
         frame.writeMediumLE(messageIndex.getAndIncrement());
         frame.writeBytes(payload);
         payload.release();
+
+        // Cachear para retransmision
+        byte[] frameBytes = new byte[frame.readableBytes()];
+        frame.getBytes(0, frameBytes);
+        sentPacketCache.put(seqNum, frameBytes);
+
         ctx.writeAndFlush(new DatagramPacket(frame, sender));
     }
 
     public void sendFrameSetOrdered(ChannelHandlerContext ctx, InetSocketAddress sender, ByteBuf payload) {
+        int seqNum = sendSequence.getAndIncrement();
         ByteBuf frame = Unpooled.buffer();
         frame.writeByte(0x84);
-        frame.writeMediumLE(sendSequence.getAndIncrement());
+        frame.writeMediumLE(seqNum);
         frame.writeByte(0x60);
         frame.writeShort(payload.readableBytes() * 8);
         frame.writeMediumLE(messageIndex.getAndIncrement());
@@ -300,6 +361,12 @@ public class RakNetHandler extends SimpleChannelInboundHandler<DatagramPacket> {
         frame.writeByte(0);
         frame.writeBytes(payload);
         payload.release();
+
+        // Cachear para retransmision
+        byte[] frameBytes = new byte[frame.readableBytes()];
+        frame.getBytes(0, frameBytes);
+        sentPacketCache.put(seqNum, frameBytes);
+
         ctx.writeAndFlush(new DatagramPacket(frame, sender));
     }
 
@@ -327,6 +394,7 @@ public class RakNetHandler extends SimpleChannelInboundHandler<DatagramPacket> {
         sendSequence.set(0);
         messageIndex.set(0);
         orderIndex.set(0);
+        sentPacketCache.clear();
         ctx.writeAndFlush(new DatagramPacket(
             new PacketOpenConnectionReply2(sender, mtu, clientGuid).encode(), sender));
     }
@@ -353,6 +421,7 @@ public class RakNetHandler extends SimpleChannelInboundHandler<DatagramPacket> {
             );
             registry.remove(sender);
         }
+        sentPacketCache.clear();
         plugin.log("&cDesconexion: &f" + sender.getAddress().getHostAddress());
     }
 
