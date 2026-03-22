@@ -7,11 +7,12 @@ import me.crossrealmmc.CrossRealmMC;
 
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class PacketTranslator {
 
     private final CrossRealmMC plugin;
-    private int sendSequence = 100;
+    private final AtomicInteger sendSequence;
 
     public static final int PACKET_LOGIN                = 0x01;
     public static final int PACKET_RESOURCE_PACK_RESP   = 0x08;
@@ -22,8 +23,9 @@ public class PacketTranslator {
     public static final int PACKET_DISCONNECT           = 0x05;
     public static final int PACKET_REQUEST_CHUNK_RADIUS = 0x45;
 
-    public PacketTranslator(CrossRealmMC plugin) {
+    public PacketTranslator(CrossRealmMC plugin, AtomicInteger sendSequence) {
         this.plugin = plugin;
+        this.sendSequence = sendSequence;
     }
 
     public void handleIncoming(ByteBuf buf, InetSocketAddress sender,
@@ -95,7 +97,7 @@ public class PacketTranslator {
 
             ByteBuf frame = Unpooled.buffer();
             frame.writeByte(0x84);
-            frame.writeMediumLE(sendSequence++);
+            frame.writeMediumLE(sendSequence.getAndIncrement());
             frame.writeByte(0x40);
             frame.writeShort(gamePacket.readableBytes() * 8);
             frame.writeMediumLE(0);
@@ -103,7 +105,7 @@ public class PacketTranslator {
             gamePacket.release();
 
             ctx.writeAndFlush(new DatagramPacket(frame, sender));
-            plugin.debugLog("NetworkSettings enviado en FrameSet seq=" + (sendSequence - 1));
+            plugin.debugLog("NetworkSettings enviado en FrameSet seq=" + (sendSequence.get() - 1));
         } catch (Exception e) {
             plugin.debugLog("Error NetworkSettings: " + e.getMessage());
         }
