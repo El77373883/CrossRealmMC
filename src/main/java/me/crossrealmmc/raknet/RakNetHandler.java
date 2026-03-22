@@ -15,6 +15,7 @@ import me.crossrealmmc.raknet.packets.*;
 import java.net.InetSocketAddress;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class RakNetHandler extends SimpleChannelInboundHandler<DatagramPacket> {
 
@@ -22,7 +23,7 @@ public class RakNetHandler extends SimpleChannelInboundHandler<DatagramPacket> {
     private final BedrockPlayerRegistry registry;
     private final BedrockLoginHandler loginHandler;
     private final PacketTranslator translator;
-    private int sendSequence = 0;
+    private final AtomicInteger sendSequence = new AtomicInteger(0);
 
     private final Map<Integer, byte[][]> fragmentBuffers = new HashMap<>();
     private final Map<Integer, Integer> fragmentCounts   = new HashMap<>();
@@ -38,8 +39,8 @@ public class RakNetHandler extends SimpleChannelInboundHandler<DatagramPacket> {
     public RakNetHandler(CrossRealmMC plugin) {
         this.plugin = plugin;
         this.registry = new BedrockPlayerRegistry();
-        this.loginHandler = new BedrockLoginHandler(plugin);
-        this.translator = new PacketTranslator(plugin);
+        this.loginHandler = new BedrockLoginHandler(plugin, sendSequence);
+        this.translator = new PacketTranslator(plugin, sendSequence);
     }
 
     @Override
@@ -224,7 +225,7 @@ public class RakNetHandler extends SimpleChannelInboundHandler<DatagramPacket> {
     private void sendFrameSet(ChannelHandlerContext ctx, InetSocketAddress sender, ByteBuf payload) {
         ByteBuf frame = Unpooled.buffer();
         frame.writeByte(0x84);
-        frame.writeMediumLE(sendSequence++);
+        frame.writeMediumLE(sendSequence.getAndIncrement());
         frame.writeByte(0x40);
         frame.writeShort(payload.readableBytes() * 8);
         frame.writeMediumLE(0);
