@@ -312,13 +312,14 @@ public class BedrockLoginHandler {
         try {
             ByteBuf chunkData = Unpooled.buffer();
 
-            // 5 subchunks para cubrir Y=-64 hasta Y=15 (donde está Y=4)
-            for (int i = 0; i < 5; i++) {
-                chunkData.writeByte(8);    // version
+            for (int i = 0; i < 24; i++) {
+                chunkData.writeByte(8);    // subchunk version
                 chunkData.writeByte(2);    // 2 layers
-                chunkData.writeByte(0);    // bits per block = 0
-                writeVarInt(chunkData, 0); // air
-                chunkData.writeByte(0);
+                // Layer 0 - bloques
+                chunkData.writeByte(1);    // (0 bits per block << 1) | 1 isRuntime
+                writeVarInt(chunkData, 0); // air runtime ID = 0
+                // Layer 1 - waterlogged
+                chunkData.writeByte(1);    // isRuntime flag
                 writeVarInt(chunkData, 0);
             }
 
@@ -334,7 +335,7 @@ public class BedrockLoginHandler {
             writeZigZagInt(buf, chunkX);
             writeZigZagInt(buf, chunkZ);
             writeVarInt(buf, 0);
-            writeVarInt(buf, 5); // 5 subchunks
+            writeVarInt(buf, 24);
             buf.writeBoolean(false);
             writeVarInt(buf, chunkData.readableBytes());
             buf.writeBytes(chunkData);
