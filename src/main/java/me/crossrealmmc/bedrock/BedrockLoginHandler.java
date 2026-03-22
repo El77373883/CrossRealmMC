@@ -276,25 +276,26 @@ public class BedrockLoginHandler {
 
     private void sendEmptyChunk(ChannelHandlerContext ctx, InetSocketAddress sender, int chunkX, int chunkZ) {
         try {
-            // Payload del chunk: 25 secciones de bioma (paleta simple = plains)
-            ByteBuf chunkPayload = Unpooled.buffer();
+            ByteBuf chunkData = Unpooled.buffer();
+
+            // 25 secciones de bioma (overworld -64 a 320)
+            // Cada seccion: 0 bits = single value palette + plains (1)
             for (int i = 0; i < 25; i++) {
-                chunkPayload.writeByte(0x01); // bits per entry = 1 (single value palette)
-                writeVarInt(chunkPayload, 1); // plains biome = 1
-                chunkPayload.writeIntLE(0);   // data array vacío
+                chunkData.writeByte(0);    // 0 bits = single value palette
+                writeVarInt(chunkData, 1); // plains = 1
             }
+            chunkData.writeByte(0); // border blocks = 0
 
             ByteBuf buf = Unpooled.buffer();
             writeVarInt(buf, PACKET_LEVEL_CHUNK);
             writeZigZagInt(buf, chunkX);
             writeZigZagInt(buf, chunkZ);
-            writeVarInt(buf, 0);  // dimension = overworld
-            writeVarInt(buf, 0);  // subchunk count = 0 (chunk vacío)
-            writeVarInt(buf, 0);  // highest subchunk = 0
-            buf.writeBoolean(false); // cache disabled
-            writeVarInt(buf, chunkPayload.readableBytes());
-            buf.writeBytes(chunkPayload);
-            chunkPayload.release();
+            writeVarInt(buf, 0);      // dimension overworld
+            writeVarInt(buf, 0);      // subchunk count = 0 (todo aire)
+            buf.writeBoolean(false);  // cache disabled
+            writeVarInt(buf, chunkData.readableBytes());
+            buf.writeBytes(chunkData);
+            chunkData.release();
 
             sendGamePacket(ctx, sender, buf);
         } catch (Exception e) {
