@@ -26,8 +26,10 @@ public class BedrockLoginHandler {
     public static final int PACKET_RESOURCE_PACK_STACK = 0x07;
     public static final int PACKET_RESOURCE_PACK_RESPONSE = 0x08;
     public static final int PACKET_START_GAME          = 0x0B;
+    public static final int PACKET_LEVEL_CHUNK         = 0x3A;
     public static final int PACKET_SET_TIME            = 0x1C;
     public static final int PACKET_RESPAWN             = 0x2D;
+    public static final int PACKET_CHUNK_RADIUS_REPLY  = 0x46;
 
     public static final int STATUS_LOGIN_SUCCESS = 0;
     public static final int STATUS_FAILED_CLIENT = 1;
@@ -61,7 +63,7 @@ public class BedrockLoginHandler {
                 plugin.getPlayerDetector().registerPlayer(uuid, PlayerDetector.PlayerType.BEDROCK, "26.3");
                 sendPlayStatus(ctx, sender, STATUS_LOGIN_SUCCESS);
                 sendResourcePacksInfo(ctx, sender);
-                sendStartGame(ctx, sender, player); // bypass ResourcePack flow
+                sendStartGame(ctx, sender, player);
                 return;
             }
 
@@ -89,7 +91,7 @@ public class BedrockLoginHandler {
             plugin.getPlayerDetector().registerPlayer(auth.uuid, PlayerDetector.PlayerType.BEDROCK, "26.3");
             sendPlayStatus(ctx, sender, STATUS_LOGIN_SUCCESS);
             sendResourcePacksInfo(ctx, sender);
-            sendStartGame(ctx, sender, player); // bypass ResourcePack flow
+            sendStartGame(ctx, sender, player);
 
         } catch (Exception e) {
             plugin.log("&cError en login: &f" + e.getMessage());
@@ -102,7 +104,6 @@ public class BedrockLoginHandler {
         if (!buf.isReadable()) return;
         int status = buf.readByte() & 0xFF;
         plugin.log("&aResourcePackResponse: &e" + status);
-
         if (status == 3 || status == 2) {
             sendResourcePackStack(ctx, sender);
         } else if (status == 4 || status == 1) {
@@ -230,6 +231,8 @@ public class BedrockLoginHandler {
         Bukkit.getScheduler().runTaskLaterAsynchronously(plugin, () -> {
             sendSetTime(ctx, sender);
             sendRespawn(ctx, sender, player);
+            sendChunkRadiusReply(ctx, sender, 8);
+            sendEmptyChunks(ctx, sender, player);
             sendPlayStatus(ctx, sender, STATUS_PLAYER_SPAWN);
             player.setState(BedrockPlayer.State.PLAYING);
             plugin.log("&a✔ Jugador spawneado: &e" + player.getUsername());
@@ -247,6 +250,56 @@ public class BedrockLoginHandler {
                 Bukkit.broadcastMessage(joinMsg);
             });
         }, 2L);
+    }
+
+    private void sendChunkRadiusReply(ChannelHandlerContext ctx, InetSocketAddress sender, int radius) {
+        ByteBuf buf = Unpooled.buffer();
+        writeVarInt(buf, PACKET_CHUNK_RADIUS_REPLY);
+        writeVarInt(buf, radius);
+        sendGamePacket(ctx, sender, buf);
+        plugin.log("&aChunkRadiusReply enviado: &e" + radius);
+    }
+
+    private void sendEmptyChunks(ChannelHandlerContext ctx, InetSocketAddress sender, BedrockPlayer player) {
+        int radius = 3;
+        int chunkX = (int) player.getX() >> 4;
+        int chunkZ = (int) player.getZ() >> 4;
+        int count = 0;
+        for (int x = chunkX - radius; x <= chunkX + radius; x++) {
+            for (int z = chunkZ - radius; z <= chunkZ + radius; z++) {
+                sendEmptyChunk(ctx, sender, x, z);
+                count++;
+            }
+        }
+        plugin.log("&aChunks vacíos enviados: &e" + count);
+    }
+
+    private void sendEmptyChunk(ChannelHandlerContext ctx, InetSocketAddress sender, int chunkX, int chunkZ) {
+        try {
+            // Payload del chunk: 25 secciones de bioma (paleta simple = plains)
+            ByteBuf chunkPayload = Unpooled.buffer();
+            for (int i = 0; i < 25; i++) {
+                chunkPayload.writeByte(0x01); // bits per entry = 1 (single value palette)
+                writeVarInt(chunkPayload, 1); // plains biome = 1
+                chunkPayload.writeIntLE(0);   // data array vacío
+            }
+
+            ByteBuf buf = Unpooled.buffer();
+            writeVarInt(buf, PACKET_LEVEL_CHUNK);
+            writeZigZagInt(buf, chunkX);
+            writeZigZagInt(buf, chunkZ);
+            writeVarInt(buf, 0);  // dimension = overworld
+            writeVarInt(buf, 0);  // subchunk count = 0 (chunk vacío)
+            writeVarInt(buf, 0);  // highest subchunk = 0
+            buf.writeBoolean(false); // cache disabled
+            writeVarInt(buf, chunkPayload.readableBytes());
+            buf.writeBytes(chunkPayload);
+            chunkPayload.release();
+
+            sendGamePacket(ctx, sender, buf);
+        } catch (Exception e) {
+            plugin.debugLog("Error enviando chunk: " + e.getMessage());
+        }
     }
 
     private void sendSetTime(ChannelHandlerContext ctx, InetSocketAddress sender) {
@@ -303,6 +356,10 @@ public class BedrockLoginHandler {
             value >>>= 7;
         }
         buf.writeByte(value);
+    }
+
+    public static void writeZigZagInt(ByteBuf buf, int value) {
+        writeVarInt(buf, (value << 1) ^ (value >> 31));
     }
 
     public static void writeVarLong(ByteBuf buf, long value) {
