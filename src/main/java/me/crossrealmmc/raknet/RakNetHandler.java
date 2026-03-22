@@ -44,7 +44,7 @@ public class RakNetHandler extends SimpleChannelInboundHandler<DatagramPacket> {
         this.plugin = plugin;
         this.registry = new BedrockPlayerRegistry();
         this.loginHandler = new BedrockLoginHandler(plugin, sendSequence);
-        this.translator = new PacketTranslator(plugin, sendSequence);
+        this.translator = new PacketTranslator(plugin, sendSequence, messageIndex, orderIndex);
     }
 
     @Override
@@ -209,7 +209,6 @@ public class RakNetHandler extends SimpleChannelInboundHandler<DatagramPacket> {
             byte[] data = new byte[buf.readableBytes()];
             buf.readBytes(data);
 
-            // Intentar descomprimir zlib
             byte[] decompressed = tryDecompress(data);
 
             ByteBuf decompressedBuf = Unpooled.wrappedBuffer(decompressed);
@@ -244,7 +243,6 @@ public class RakNetHandler extends SimpleChannelInboundHandler<DatagramPacket> {
                 return result;
             }
         } catch (Exception ignored) {}
-        // Si falla devolver datos sin descomprimir
         return data;
     }
 
