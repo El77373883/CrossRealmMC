@@ -12,6 +12,7 @@ import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.zip.Deflater;
 
 public class BedrockLoginHandler {
 
@@ -102,10 +103,8 @@ public class BedrockLoginHandler {
         plugin.log("&aResourcePackResponse: &e" + status);
 
         if (status == 3 || status == 2) {
-            // Bedrock confirma que tiene los packs — enviar stack
             sendResourcePackStack(ctx, sender);
         } else if (status == 4 || status == 1) {
-            // Bedrock listo — enviar StartGame
             sendStartGame(ctx, sender, player);
         }
     }
@@ -121,11 +120,11 @@ public class BedrockLoginHandler {
     private void sendResourcePacksInfo(ChannelHandlerContext ctx, InetSocketAddress sender) {
         ByteBuf buf = Unpooled.buffer();
         writeVarInt(buf, PACKET_RESOURCE_PACKS_INFO);
-        buf.writeBoolean(false); // mustAccept
-        buf.writeBoolean(false); // hasScripts
-        buf.writeBoolean(false); // forceServerPacks
-        buf.writeShortLE(0);     // behavior pack count
-        buf.writeShortLE(0);     // resource pack count
+        buf.writeBoolean(false);
+        buf.writeBoolean(false);
+        buf.writeBoolean(false);
+        buf.writeShortLE(0);
+        buf.writeShortLE(0);
         sendGamePacket(ctx, sender, buf);
         plugin.log("&aResourcePacksInfo enviado");
     }
@@ -133,12 +132,12 @@ public class BedrockLoginHandler {
     private void sendResourcePackStack(ChannelHandlerContext ctx, InetSocketAddress sender) {
         ByteBuf buf = Unpooled.buffer();
         writeVarInt(buf, PACKET_RESOURCE_PACK_STACK);
-        buf.writeBoolean(false); // mustAccept
-        writeVarInt(buf, 0);     // behavior pack count
-        writeVarInt(buf, 0);     // resource pack count
-        writeString(buf, "1.21.1"); // game version
-        buf.writeIntLE(0);       // experiments count
-        buf.writeBoolean(false); // experiments previously used
+        buf.writeBoolean(false);
+        writeVarInt(buf, 0);
+        writeVarInt(buf, 0);
+        writeString(buf, "1.21.1");
+        buf.writeIntLE(0);
+        buf.writeBoolean(false);
         sendGamePacket(ctx, sender, buf);
         plugin.log("&aResourcePackStack enviado");
     }
@@ -269,16 +268,23 @@ public class BedrockLoginHandler {
 
     private void sendGamePacket(ChannelHandlerContext ctx, InetSocketAddress sender, ByteBuf payload) {
         try {
-            ByteBuf withAlgorithm = Unpooled.buffer();
-            withAlgorithm.writeByte(0xFF);
-            withAlgorithm.writeBytes(payload);
+            byte[] data = new byte[payload.readableBytes()];
+            payload.readBytes(data);
             payload.release();
+
+            // Comprimir con zlib
+            Deflater deflater = new Deflater();
+            deflater.setInput(data);
+            deflater.finish();
+            byte[] compressed = new byte[data.length + 100];
+            int compressedLen = deflater.deflate(compressed);
+            deflater.end();
 
             ByteBuf gamePacket = Unpooled.buffer();
             gamePacket.writeByte(0xFE);
-            writeVarInt(gamePacket, withAlgorithm.readableBytes());
-            gamePacket.writeBytes(withAlgorithm);
-            withAlgorithm.release();
+            writeVarInt(gamePacket, compressedLen + 1); // +1 por el byte de algoritmo
+            gamePacket.writeByte(0x00); // algorithm = zlib
+            gamePacket.writeBytes(compressed, 0, compressedLen);
 
             ByteBuf frame = Unpooled.buffer();
             frame.writeByte(0x84);
