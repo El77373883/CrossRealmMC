@@ -311,8 +311,18 @@ public class BedrockLoginHandler {
     private void sendEmptyChunk(ChannelHandlerContext ctx, InetSocketAddress sender, int chunkX, int chunkZ) {
         try {
             ByteBuf chunkData = Unpooled.buffer();
-            chunkData.writeByte(8);
+
+            // Subchunk version 8 con 2 capas
+            chunkData.writeByte(8);  // version
+            chunkData.writeByte(2);  // 2 layers
+            // Layer 0 - bloques (aire)
+            chunkData.writeByte(0);  // bits per block = 0
+            writeVarInt(chunkData, 0); // air = 0
+            // Layer 1 - waterlogged (vacío)
             chunkData.writeByte(0);
+            writeVarInt(chunkData, 0);
+
+            // 25 biomas
             for (int i = 0; i < 25; i++) {
                 chunkData.writeByte(0x00);
                 writeVarInt(chunkData, 1);
@@ -380,7 +390,6 @@ public class BedrockLoginHandler {
         }
     }
 
-    // Para paquetes sin byte de algoritmo (NetworkSettings)
     public void sendRawGamePacketPublic(ChannelHandlerContext ctx, InetSocketAddress sender, ByteBuf payload) {
         try {
             ByteBuf gamePacket = Unpooled.buffer();
