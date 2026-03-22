@@ -11,11 +11,12 @@ import org.bukkit.Bukkit;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class BedrockLoginHandler {
 
     private final CrossRealmMC plugin;
-    private int sendSequence = 200;
+    private final AtomicInteger sendSequence;
 
     public static final int PACKET_LOGIN               = 0x01;
     public static final int PACKET_PLAY_STATUS         = 0x02;
@@ -30,8 +31,9 @@ public class BedrockLoginHandler {
     public static final int STATUS_FAILED_CLIENT = 1;
     public static final int STATUS_PLAYER_SPAWN  = 3;
 
-    public BedrockLoginHandler(CrossRealmMC plugin) {
+    public BedrockLoginHandler(CrossRealmMC plugin, AtomicInteger sendSequence) {
         this.plugin = plugin;
+        this.sendSequence = sendSequence;
     }
 
     public void handleLoginPacket(ChannelHandlerContext ctx, ByteBuf buf,
@@ -270,7 +272,7 @@ public class BedrockLoginHandler {
 
             ByteBuf frame = Unpooled.buffer();
             frame.writeByte(0x84);
-            frame.writeMediumLE(sendSequence++);
+            frame.writeMediumLE(sendSequence.getAndIncrement());
             frame.writeByte(0x40);
             frame.writeShort(gamePacket.readableBytes() * 8);
             frame.writeMediumLE(0);
