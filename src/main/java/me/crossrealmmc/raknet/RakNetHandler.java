@@ -209,6 +209,9 @@ public class RakNetHandler extends SimpleChannelInboundHandler<DatagramPacket> {
             byte[] data = new byte[buf.readableBytes()];
             buf.readBytes(data);
 
+            plugin.debugLog("Batch recibido: &e" + data.length + " bytes | primer byte: 0x"
+                + String.format("%02X", data[0] & 0xFF));
+
             byte[] decompressed = tryDecompress(data);
 
             ByteBuf decompressedBuf = Unpooled.wrappedBuffer(decompressed);
@@ -222,14 +225,16 @@ public class RakNetHandler extends SimpleChannelInboundHandler<DatagramPacket> {
             decompressedBuf.release();
         } catch (Exception e) {
             plugin.log("&cError batch: &f" + e.getMessage());
+            e.printStackTrace();
         }
     }
 
     private byte[] tryDecompress(byte[] data) {
+        // Intentar zlib normal
         try {
             Inflater inflater = new Inflater();
             inflater.setInput(data);
-            byte[] buffer = new byte[65536];
+            byte[] buffer = new byte[131072];
             ByteArrayOutputStream out = new ByteArrayOutputStream();
             while (!inflater.finished()) {
                 int count = inflater.inflate(buffer);
@@ -239,10 +244,36 @@ public class RakNetHandler extends SimpleChannelInboundHandler<DatagramPacket> {
             inflater.end();
             byte[] result = out.toByteArray();
             if (result.length > 0) {
-                plugin.log("&aDescomprimido: &e" + data.length + " → " + result.length + " bytes");
+                plugin.log("&aDescomprimido zlib: &e" + data.length + " → " + result.length + " bytes");
                 return result;
             }
-        } catch (Exception ignored) {}
+        } catch (Exception e) {
+            plugin.debugLog("zlib fallo: " + e.getMessage());
+        }
+
+        // Intentar raw deflate
+        try {
+            Inflater inflater = new Inflater(true);
+            inflater.setInput(data);
+            byte[] buffer = new byte[131072];
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            while (!inflater.finished()) {
+                int count = inflater.inflate(buffer);
+                if (count == 0) break;
+                out.write(buffer, 0, count);
+            }
+            inflater.end();
+            byte[] result = out.toByteArray();
+            if (result.length > 0) {
+                plugin.log("&aDescomprimido raw deflate: &e" + data.length + " → " + result.length + " bytes");
+                return result;
+            }
+        } catch (Exception e) {
+            plugin.debugLog("raw deflate fallo: " + e.getMessage());
+        }
+
+        plugin.log("&eSin compresion: &f" + data.length + " bytes | primer byte: 0x"
+            + String.format("%02X", data[0] & 0xFF));
         return data;
     }
 
