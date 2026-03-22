@@ -17,8 +17,8 @@ public class BedrockLoginHandler {
 
     private final CrossRealmMC plugin;
     private final AtomicInteger sendSequence;
-    private final AtomicInteger messageIndex = new AtomicInteger(0);
-    private final AtomicInteger orderIndex   = new AtomicInteger(0);
+    private final AtomicInteger messageIndex;
+    private final AtomicInteger orderIndex;
 
     public static final int PACKET_LOGIN               = 0x01;
     public static final int PACKET_PLAY_STATUS         = 0x02;
@@ -33,14 +33,12 @@ public class BedrockLoginHandler {
     public static final int STATUS_FAILED_CLIENT = 1;
     public static final int STATUS_PLAYER_SPAWN  = 3;
 
-    public BedrockLoginHandler(CrossRealmMC plugin, AtomicInteger sendSequence) {
+    public BedrockLoginHandler(CrossRealmMC plugin, AtomicInteger sendSequence,
+            AtomicInteger messageIndex, AtomicInteger orderIndex) {
         this.plugin = plugin;
         this.sendSequence = sendSequence;
-    }
-
-    public void setCounters(AtomicInteger messageIndex, AtomicInteger orderIndex) {
-        this.messageIndex.set(messageIndex.get());
-        this.orderIndex.set(orderIndex.get());
+        this.messageIndex = messageIndex;
+        this.orderIndex = orderIndex;
     }
 
     public void handleLoginPacket(ChannelHandlerContext ctx, ByteBuf buf,
@@ -252,9 +250,8 @@ public class BedrockLoginHandler {
 
     private void sendGamePacket(ChannelHandlerContext ctx, InetSocketAddress sender, ByteBuf payload) {
         try {
-            // Envolver con 0xFF (sin compresion) + 0xFE + FrameSet
             ByteBuf withAlgorithm = Unpooled.buffer();
-            withAlgorithm.writeByte(0xFF); // sin compresion
+            withAlgorithm.writeByte(0xFF);
             withAlgorithm.writeBytes(payload);
             payload.release();
 
