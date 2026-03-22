@@ -278,20 +278,21 @@ public class BedrockLoginHandler {
         try {
             ByteBuf chunkData = Unpooled.buffer();
 
-            // 25 secciones de bioma (overworld -64 a 320)
-            // Cada seccion: 0 bits = single value palette + plains (1)
+            // 25 secciones de bioma con paleta runtime
             for (int i = 0; i < 25; i++) {
-                chunkData.writeByte(0);    // 0 bits = single value palette
-                writeVarInt(chunkData, 1); // plains = 1
+                chunkData.writeByte(0x01); // paletteType = 1 (runtime ID)
+                chunkData.writeByte(0x00); // bitsPerBlock = 0 (single value)
+                writeVarInt(chunkData, 1); // plains = runtime ID 1
             }
-            chunkData.writeByte(0); // border blocks = 0
+            // border blocks count = 0
+            writeVarInt(chunkData, 0);
 
             ByteBuf buf = Unpooled.buffer();
             writeVarInt(buf, PACKET_LEVEL_CHUNK);
             writeZigZagInt(buf, chunkX);
             writeZigZagInt(buf, chunkZ);
             writeVarInt(buf, 0);      // dimension overworld
-            writeVarInt(buf, 0);      // subchunk count = 0 (todo aire)
+            writeVarInt(buf, -1);     // -1 = subchunk request (chunk vacío)
             buf.writeBoolean(false);  // cache disabled
             writeVarInt(buf, chunkData.readableBytes());
             buf.writeBytes(chunkData);
