@@ -149,7 +149,7 @@ public class BedrockLoginHandler {
             player.getState() == BedrockPlayer.State.SPAWNING) return;
 
         player.setState(BedrockPlayer.State.SPAWNING);
-        player.setPosition(0, 4, 0); // Y=4 dentro del subchunk
+        player.setPosition(0, 4, 0);
         plugin.log("&aEnviando StartGame a: &e" + player.getUsername());
 
         ByteBuf buf = Unpooled.buffer();
@@ -158,7 +158,7 @@ public class BedrockLoginHandler {
         writeVarLong(buf, player.getEntityId());
         writeVarInt(buf, 0);
         buf.writeFloatLE(0);
-        buf.writeFloatLE(4); // Y=4
+        buf.writeFloatLE(4);
         buf.writeFloatLE(0);
         buf.writeFloatLE(0);
         buf.writeFloatLE(0);
@@ -312,13 +312,17 @@ public class BedrockLoginHandler {
         try {
             ByteBuf chunkData = Unpooled.buffer();
 
-            chunkData.writeByte(8);  // version
-            chunkData.writeByte(2);  // 2 layers
-            chunkData.writeByte(0);  // bits per block = 0
-            writeVarInt(chunkData, 0); // air = 0
-            chunkData.writeByte(0);
-            writeVarInt(chunkData, 0);
+            // 5 subchunks para cubrir Y=-64 hasta Y=15 (donde está Y=4)
+            for (int i = 0; i < 5; i++) {
+                chunkData.writeByte(8);    // version
+                chunkData.writeByte(2);    // 2 layers
+                chunkData.writeByte(0);    // bits per block = 0
+                writeVarInt(chunkData, 0); // air
+                chunkData.writeByte(0);
+                writeVarInt(chunkData, 0);
+            }
 
+            // 25 biomas
             for (int i = 0; i < 25; i++) {
                 chunkData.writeByte(0x00);
                 writeVarInt(chunkData, 1);
@@ -330,7 +334,7 @@ public class BedrockLoginHandler {
             writeZigZagInt(buf, chunkX);
             writeZigZagInt(buf, chunkZ);
             writeVarInt(buf, 0);
-            writeVarInt(buf, 1);
+            writeVarInt(buf, 5); // 5 subchunks
             buf.writeBoolean(false);
             writeVarInt(buf, chunkData.readableBytes());
             buf.writeBytes(chunkData);
@@ -353,7 +357,7 @@ public class BedrockLoginHandler {
         ByteBuf buf = Unpooled.buffer();
         writeVarInt(buf, PACKET_RESPAWN);
         buf.writeFloatLE(0);
-        buf.writeFloatLE(4); // Y=4
+        buf.writeFloatLE(4);
         buf.writeFloatLE(0);
         buf.writeByte(0);
         writeVarLong(buf, player.getEntityId());
