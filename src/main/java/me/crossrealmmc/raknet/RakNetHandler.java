@@ -24,6 +24,8 @@ public class RakNetHandler extends SimpleChannelInboundHandler<DatagramPacket> {
     private final BedrockLoginHandler loginHandler;
     private final PacketTranslator translator;
     private final AtomicInteger sendSequence = new AtomicInteger(0);
+    private final AtomicInteger messageIndex = new AtomicInteger(0);
+    private final AtomicInteger orderIndex   = new AtomicInteger(0);
 
     private final Map<Integer, byte[][]> fragmentBuffers = new HashMap<>();
     private final Map<Integer, Integer> fragmentCounts   = new HashMap<>();
@@ -171,7 +173,7 @@ public class RakNetHandler extends SimpleChannelInboundHandler<DatagramPacket> {
                 pong.writeByte(0x03);
                 pong.writeLong(pingTime);
                 pong.writeLong(System.currentTimeMillis());
-                sendFrameSet(ctx, sender, pong);
+                sendFrameSetOrdered(ctx, sender, pong);
             }
             return;
         }
@@ -183,7 +185,7 @@ public class RakNetHandler extends SimpleChannelInboundHandler<DatagramPacket> {
         if (firstByte == 0x13) {
             plugin.log("&aNewIncomingConnection: &f" + sender.getAddress().getHostAddress());
             registry.getOrCreate(sender);
-            plugin.log("&aâ RakNet completo: &f" + sender.getAddress().getHostAddress());
+            plugin.log("&a✔ RakNet completo: &f" + sender.getAddress().getHostAddress());
             return;
         }
         if (firstByte == 0x15) {
@@ -222,13 +224,29 @@ public class RakNetHandler extends SimpleChannelInboundHandler<DatagramPacket> {
         ctx.writeAndFlush(new DatagramPacket(ack, sender));
     }
 
+    // Reliable (para ConnectedPong)
     private void sendFrameSet(ChannelHandlerContext ctx, InetSocketAddress sender, ByteBuf payload) {
         ByteBuf frame = Unpooled.buffer();
         frame.writeByte(0x84);
         frame.writeMediumLE(sendSequence.getAndIncrement());
-        frame.writeByte(0x40);
+        frame.writeByte(0x40);  // reliable
         frame.writeShort(payload.readableBytes() * 8);
-        frame.writeMediumLE(0);
+        frame.writeMediumLE(messageIndex.getAndIncrement());
+        frame.writeBytes(payload);
+        payload.release();
+        ctx.writeAndFlush(new DatagramPacket(frame, sender));
+    }
+
+    // Reliable Ordered (para paquetes de juego)
+    public void sendFrameSetOrdered(ChannelHandlerContext ctx, InetSocketAddress sender, ByteBuf payload) {
+        ByteBuf frame = Unpooled.buffer();
+        frame.writeByte(0x84);
+        frame.writeMediumLE(sendSequence.getAndIncrement());
+        frame.writeByte(0x60);  // reliable ordered
+        frame.writeShort(payload.readableBytes() * 8);
+        frame.writeMediumLE(messageIndex.getAndIncrement());
+        frame.writeMediumLE(orderIndex.getAndIncrement());
+        frame.writeByte(0);     // order channel
         frame.writeBytes(payload);
         payload.release();
         ctx.writeAndFlush(new DatagramPacket(frame, sender));
@@ -256,8 +274,10 @@ public class RakNetHandler extends SimpleChannelInboundHandler<DatagramPacket> {
         long clientGuid = buf.readLong();
         plugin.log("&aOCR2 | MTU: &e" + mtu + " &7GUID: &e" + clientGuid);
 
-        // Resetear secuencia para nueva conexion
+        // Resetear secuencias para nueva conexion
         sendSequence.set(0);
+        messageIndex.set(0);
+        orderIndex.set(0);
 
         ctx.writeAndFlush(new DatagramPacket(
             new PacketOpenConnectionReply2(sender, mtu, clientGuid).encode(), sender));
@@ -269,7 +289,7 @@ public class RakNetHandler extends SimpleChannelInboundHandler<DatagramPacket> {
         long time = buf.readLong();
         plugin.log("&aConnectionRequest | GUID: &e" + clientGuid);
         ByteBuf payload = new PacketConnectionRequestAccepted(sender, time).encode();
-        sendFrameSet(ctx, sender, payload);
+        sendFrameSetOrdered(ctx, sender, payload);
         plugin.log("&aConnectionRequestAccepted enviado en FrameSet");
     }
 
