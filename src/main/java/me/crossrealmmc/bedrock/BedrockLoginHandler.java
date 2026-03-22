@@ -15,6 +15,7 @@ import java.util.UUID;
 public class BedrockLoginHandler {
 
     private final CrossRealmMC plugin;
+    private int sendSequence = 0;
 
     public static final int PACKET_LOGIN               = 0x01;
     public static final int PACKET_PLAY_STATUS         = 0x02;
@@ -261,14 +262,26 @@ public class BedrockLoginHandler {
 
     public void sendGamePacketPublic(ChannelHandlerContext ctx, InetSocketAddress sender, ByteBuf payload) {
         try {
-            ByteBuf wrapper = Unpooled.buffer();
-            writeVarInt(wrapper, payload.readableBytes());
-            wrapper.writeBytes(payload);
-            ctx.writeAndFlush(new DatagramPacket(wrapper, sender));
+            // Envolver en 0xFE
+            ByteBuf gamePacket = Unpooled.buffer();
+            gamePacket.writeByte(0xFE);
+            writeVarInt(gamePacket, payload.readableBytes());
+            gamePacket.writeBytes(payload);
+            payload.release();
+
+            // Envolver en FrameSet
+            ByteBuf frame = Unpooled.buffer();
+            frame.writeByte(0x84);
+            frame.writeMediumLE(sendSequence++);
+            frame.writeByte(0x40);
+            frame.writeShort(gamePacket.readableBytes() * 8);
+            frame.writeMediumLE(0);
+            frame.writeBytes(gamePacket);
+            gamePacket.release();
+
+            ctx.writeAndFlush(new DatagramPacket(frame, sender));
         } catch (Exception e) {
             plugin.log("&cError enviando paquete: &f" + e.getMessage());
-        } finally {
-            payload.release();
         }
     }
 
