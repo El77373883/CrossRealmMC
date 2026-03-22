@@ -78,8 +78,8 @@ public class PacketTranslator {
             plugin.debugLog("RequestNetworkSettings | Protocolo: " + protocol);
             ByteBuf resp = Unpooled.buffer();
             BedrockLoginHandler.writeVarInt(resp, 0x0F);
-            resp.writeShortLE(512);
-            resp.writeShortLE(0);
+            resp.writeShortLE(0);    // sin compresión
+            resp.writeShortLE(0);    // compression algorithm
             resp.writeBoolean(false);
             resp.writeByte(0);
             resp.writeFloatLE(0);
