@@ -269,6 +269,7 @@ public class BedrockLoginHandler {
         try {
             ByteBuf gamePacket = Unpooled.buffer();
             gamePacket.writeByte(0xFE);
+            writeVarInt(gamePacket, payload.readableBytes() + 1); // +1 por byte 0xFF
             gamePacket.writeByte(0xFF); // sin compresion
             gamePacket.writeBytes(payload);
             payload.release();
