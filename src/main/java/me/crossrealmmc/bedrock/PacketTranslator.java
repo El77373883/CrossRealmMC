@@ -195,7 +195,7 @@ public class PacketTranslator {
         long value = 0;
         int size = 0;
         int b;
-        while (((b & buf.readByte()) & 0x80) == 0x80) {
+        while (((b = buf.readByte()) & 0x80) == 0x80) {
             value |= (long)(b & 0x7F) << (size++ * 7);
             if (size > 10) return value;
         }
