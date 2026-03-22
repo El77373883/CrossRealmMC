@@ -89,12 +89,11 @@ public class PacketTranslator {
             ByteBuf payload = Unpooled.buffer();
             BedrockLoginHandler.writeVarInt(payload, 0x8F);
             payload.writeShortLE(0);
-            payload.writeShortLE(0xFF); // sin compresion
+            payload.writeShortLE(0xFF);
             payload.writeBoolean(false);
             payload.writeByte(0);
             payload.writeFloatLE(0);
 
-            // Restaurar VarInt de longitud
             ByteBuf gamePacket = Unpooled.buffer();
             gamePacket.writeByte(0xFE);
             BedrockLoginHandler.writeVarInt(gamePacket, payload.readableBytes());
@@ -158,7 +157,16 @@ public class PacketTranslator {
     private void handleChunkRadius(io.netty.channel.ChannelHandlerContext ctx,
             ByteBuf buf, InetSocketAddress sender, BedrockPlayer player,
             BedrockLoginHandler loginHandler) {
-        plugin.debugLog("ChunkRadius request de: " + player.getUsername());
+        int radius = readVarInt(buf);
+        plugin.debugLog("ChunkRadius request de: " + player.getUsername() + " radio: " + radius);
+
+        // Siempre responder con ChunkRadiusReply
+        ByteBuf reply = Unpooled.buffer();
+        BedrockLoginHandler.writeVarInt(reply, 0x46);
+        BedrockLoginHandler.writeVarInt(reply, 1);
+        loginHandler.sendGamePacketPublic(ctx, sender, reply);
+        plugin.debugLog("ChunkRadiusReply respondido");
+
         if (player.getState() == BedrockPlayer.State.LOGIN) {
             loginHandler.sendStartGame(ctx, sender, player);
         }
