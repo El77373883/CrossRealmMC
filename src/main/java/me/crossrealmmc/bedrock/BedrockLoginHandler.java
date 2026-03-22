@@ -3,6 +3,7 @@ package me.crossrealmmc.bedrock;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.socket.DatagramPacket;
 import me.crossrealmmc.CrossRealmMC;
 import me.crossrealmmc.detection.PlayerDetector;
 import org.bukkit.Bukkit;
@@ -16,6 +17,8 @@ public class BedrockLoginHandler {
 
     private final CrossRealmMC plugin;
     private final AtomicInteger sendSequence;
+    private final AtomicInteger messageIndex = new AtomicInteger(0);
+    private final AtomicInteger orderIndex   = new AtomicInteger(0);
 
     public static final int PACKET_LOGIN               = 0x01;
     public static final int PACKET_PLAY_STATUS         = 0x02;
@@ -33,6 +36,11 @@ public class BedrockLoginHandler {
     public BedrockLoginHandler(CrossRealmMC plugin, AtomicInteger sendSequence) {
         this.plugin = plugin;
         this.sendSequence = sendSequence;
+    }
+
+    public void setCounters(AtomicInteger messageIndex, AtomicInteger orderIndex) {
+        this.messageIndex.set(messageIndex.get());
+        this.orderIndex.set(orderIndex.get());
     }
 
     public void handleLoginPacket(ChannelHandlerContext ctx, ByteBuf buf,
@@ -53,14 +61,14 @@ public class BedrockLoginHandler {
                 player.setState(BedrockPlayer.State.LOGIN);
                 plugin.log("&aJugador offline aceptado: &e" + prefixedName);
                 plugin.getPlayerDetector().registerPlayer(uuid, PlayerDetector.PlayerType.BEDROCK, "26.3");
-                sendPlayStatus(ctx, STATUS_LOGIN_SUCCESS);
-                sendResourcePacksInfo(ctx);
+                sendPlayStatus(ctx, sender, STATUS_LOGIN_SUCCESS);
+                sendResourcePacksInfo(ctx, sender);
                 return;
             }
 
-            if (!buf.isReadable(4)) { sendPlayStatus(ctx, STATUS_FAILED_CLIENT); return; }
+            if (!buf.isReadable(4)) { sendPlayStatus(ctx, sender, STATUS_FAILED_CLIENT); return; }
             int chainLength = buf.readIntLE();
-            if (chainLength <= 0 || chainLength > 65536) { sendPlayStatus(ctx, STATUS_FAILED_CLIENT); return; }
+            if (chainLength <= 0 || chainLength > 65536) { sendPlayStatus(ctx, sender, STATUS_FAILED_CLIENT); return; }
             byte[] chainBytes = new byte[chainLength];
             buf.readBytes(chainBytes);
             String jwtChain = new String(chainBytes, StandardCharsets.UTF_8);
@@ -69,7 +77,7 @@ public class BedrockLoginHandler {
             XboxAuthManager.AuthResult auth = xboxAuth.authenticate(jwtChain, true);
             if (!auth.authenticated) {
                 plugin.log("&cAuth fallida: &f" + auth.errorMessage);
-                sendPlayStatus(ctx, STATUS_FAILED_CLIENT);
+                sendPlayStatus(ctx, sender, STATUS_FAILED_CLIENT);
                 return;
             }
 
@@ -80,8 +88,8 @@ public class BedrockLoginHandler {
             player.setState(BedrockPlayer.State.LOGIN);
             plugin.log("&aJugador autenticado: &e" + prefixedName);
             plugin.getPlayerDetector().registerPlayer(auth.uuid, PlayerDetector.PlayerType.BEDROCK, "26.3");
-            sendPlayStatus(ctx, STATUS_LOGIN_SUCCESS);
-            sendResourcePacksInfo(ctx);
+            sendPlayStatus(ctx, sender, STATUS_LOGIN_SUCCESS);
+            sendResourcePacksInfo(ctx, sender);
 
         } catch (Exception e) {
             plugin.log("&cError en login: &f" + e.getMessage());
@@ -99,22 +107,22 @@ public class BedrockLoginHandler {
         }
     }
 
-    private void sendPlayStatus(ChannelHandlerContext ctx, int status) {
+    private void sendPlayStatus(ChannelHandlerContext ctx, InetSocketAddress sender, int status) {
         ByteBuf buf = Unpooled.buffer();
         writeVarInt(buf, PACKET_PLAY_STATUS);
         buf.writeInt(status);
-        sendGamePacket(ctx, buf);
+        sendGamePacket(ctx, sender, buf);
         plugin.log("&aPlayStatus enviado: &e" + status);
     }
 
-    private void sendResourcePacksInfo(ChannelHandlerContext ctx) {
+    private void sendResourcePacksInfo(ChannelHandlerContext ctx, InetSocketAddress sender) {
         ByteBuf buf = Unpooled.buffer();
         writeVarInt(buf, PACKET_RESOURCE_PACKS_INFO);
         buf.writeBoolean(false);
         buf.writeBoolean(false);
         buf.writeShortLE(0);
         buf.writeShortLE(0);
-        sendGamePacket(ctx, buf);
+        sendGamePacket(ctx, sender, buf);
         plugin.log("&aResourcePacksInfo enviado");
     }
 
@@ -199,13 +207,13 @@ public class BedrockLoginHandler {
         buf.writeBoolean(false);
         buf.writeBoolean(false);
 
-        sendGamePacket(ctx, buf);
+        sendGamePacket(ctx, sender, buf);
         plugin.log("&aStartGame enviado");
 
         Bukkit.getScheduler().runTaskLaterAsynchronously(plugin, () -> {
-            sendSetTime(ctx);
-            sendRespawn(ctx, player);
-            sendPlayStatus(ctx, STATUS_PLAYER_SPAWN);
+            sendSetTime(ctx, sender);
+            sendRespawn(ctx, sender, player);
+            sendPlayStatus(ctx, sender, STATUS_PLAYER_SPAWN);
             player.setState(BedrockPlayer.State.PLAYING);
             plugin.log("&a✔ Jugador spawneado: &e" + player.getUsername());
             plugin.getConnectionLogger().logJoin(
@@ -224,14 +232,14 @@ public class BedrockLoginHandler {
         }, 2L);
     }
 
-    private void sendSetTime(ChannelHandlerContext ctx) {
+    private void sendSetTime(ChannelHandlerContext ctx, InetSocketAddress sender) {
         ByteBuf buf = Unpooled.buffer();
         writeVarInt(buf, PACKET_SET_TIME);
         writeVarInt(buf, 6000);
-        sendGamePacket(ctx, buf);
+        sendGamePacket(ctx, sender, buf);
     }
 
-    private void sendRespawn(ChannelHandlerContext ctx, BedrockPlayer player) {
+    private void sendRespawn(ChannelHandlerContext ctx, InetSocketAddress sender, BedrockPlayer player) {
         ByteBuf buf = Unpooled.buffer();
         writeVarInt(buf, PACKET_RESPAWN);
         buf.writeFloatLE(0);
@@ -239,20 +247,42 @@ public class BedrockLoginHandler {
         buf.writeFloatLE(0);
         buf.writeByte(0);
         writeVarLong(buf, player.getEntityId());
-        sendGamePacket(ctx, buf);
+        sendGamePacket(ctx, sender, buf);
     }
 
-    private void sendGamePacket(ChannelHandlerContext ctx, ByteBuf payload) {
+    private void sendGamePacket(ChannelHandlerContext ctx, InetSocketAddress sender, ByteBuf payload) {
         try {
-            ctx.writeAndFlush(payload);
+            // Envolver con 0xFF (sin compresion) + 0xFE + FrameSet
+            ByteBuf withAlgorithm = Unpooled.buffer();
+            withAlgorithm.writeByte(0xFF); // sin compresion
+            withAlgorithm.writeBytes(payload);
+            payload.release();
+
+            ByteBuf gamePacket = Unpooled.buffer();
+            gamePacket.writeByte(0xFE);
+            writeVarInt(gamePacket, withAlgorithm.readableBytes());
+            gamePacket.writeBytes(withAlgorithm);
+            withAlgorithm.release();
+
+            ByteBuf frame = Unpooled.buffer();
+            frame.writeByte(0x84);
+            frame.writeMediumLE(sendSequence.getAndIncrement());
+            frame.writeByte(0x60);
+            frame.writeShort(gamePacket.readableBytes() * 8);
+            frame.writeMediumLE(messageIndex.getAndIncrement());
+            frame.writeMediumLE(orderIndex.getAndIncrement());
+            frame.writeByte(0);
+            frame.writeBytes(gamePacket);
+            gamePacket.release();
+
+            ctx.writeAndFlush(new DatagramPacket(frame, sender));
         } catch (Exception e) {
             plugin.log("&cError enviando paquete: &f" + e.getMessage());
         }
     }
 
-    // Mantener sendGamePacketPublic para PacketTranslator
     public void sendGamePacketPublic(ChannelHandlerContext ctx, InetSocketAddress sender, ByteBuf payload) {
-        sendGamePacket(ctx, payload);
+        sendGamePacket(ctx, sender, payload);
     }
 
     public static void writeVarInt(ByteBuf buf, int value) {
