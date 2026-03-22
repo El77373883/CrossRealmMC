@@ -6,15 +6,10 @@ import me.crossrealmmc.CrossRealmMC;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 
-/**
- * PacketTranslator — Traduce paquetes Bedrock → Java y Java → Bedrock
- * Hecho por soyadrianyt001
- */
 public class PacketTranslator {
 
     private final CrossRealmMC plugin;
 
-    // Paquetes Bedrock entrantes del cliente
     public static final int PACKET_LOGIN                = 0x01;
     public static final int PACKET_RESOURCE_PACK_RESP   = 0x08;
     public static final int PACKET_MOVE_PLAYER          = 0x13;
@@ -28,9 +23,6 @@ public class PacketTranslator {
         this.plugin = plugin;
     }
 
-    /**
-     * Traduce y maneja un paquete recibido del cliente Bedrock
-     */
     public void handleIncoming(ByteBuf buf, InetSocketAddress sender,
             BedrockPlayer player, BedrockLoginHandler loginHandler,
             io.netty.channel.ChannelHandlerContext ctx) {
@@ -75,15 +67,15 @@ public class PacketTranslator {
                 handlePlayerAction(buf, player);
                 break;
 
+            case 0xC1: // DetectedLogin — ignorar
+                plugin.debugLog("DetectedLogin 0xC1 ignorado");
+                break;
+
             default:
                 plugin.debugLog("Paquete no manejado: 0x" + String.format("%02X", packetId));
                 break;
         }
     }
-
-    // ─────────────────────────────────────────
-    // HANDLERS ENTRANTES
-    // ─────────────────────────────────────────
 
     private void handleMovePlayer(ByteBuf buf, BedrockPlayer player) {
         if (!buf.isReadable(28)) return;
@@ -106,14 +98,12 @@ public class PacketTranslator {
             String type = readString(buf);
             String source = readString(buf);
             String msg = readString(buf);
-
             if (msg != null && !msg.isEmpty()) {
                 String prefix = plugin.getConfigManager().getBedrockChatPrefix();
                 final String finalMsg = msg;
                 org.bukkit.Bukkit.getScheduler().runTask(plugin, () ->
                     org.bukkit.Bukkit.broadcastMessage(prefix + " §f" + player.getUsername() + "§7: §f" + finalMsg)
                 );
-                plugin.debugLog("Chat Bedrock: " + player.getUsername() + ": " + msg);
             }
         } catch (Exception ignored) {}
     }
@@ -126,7 +116,6 @@ public class PacketTranslator {
             ByteBuf buf, InetSocketAddress sender, BedrockPlayer player,
             BedrockLoginHandler loginHandler) {
         plugin.debugLog("ChunkRadius request de: " + player.getUsername());
-        // Si estamos en spawning y recibimos chunk radius, ya podemos hacer start game
         if (player.getState() == BedrockPlayer.State.LOGIN) {
             loginHandler.sendStartGame(ctx, sender, player);
         }
@@ -147,10 +136,6 @@ public class PacketTranslator {
     private void handlePlayerAction(ByteBuf buf, BedrockPlayer player) {
         plugin.debugLog("PlayerAction de: " + player.getUsername());
     }
-
-    // ─────────────────────────────────────────
-    // UTILS
-    // ─────────────────────────────────────────
 
     public static int readVarInt(ByteBuf buf) {
         int value = 0;
