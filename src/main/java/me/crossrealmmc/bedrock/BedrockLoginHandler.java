@@ -231,7 +231,7 @@ public class BedrockLoginHandler {
         Bukkit.getScheduler().runTaskLaterAsynchronously(plugin, () -> {
             sendSetTime(ctx, sender);
             sendRespawn(ctx, sender, player);
-            sendChunkRadiusReply(ctx, sender, 3);
+            sendChunkRadiusReply(ctx, sender, 1);
             sendEmptyChunks(ctx, sender, player);
             sendPlayStatus(ctx, sender, STATUS_PLAYER_SPAWN);
             player.setState(BedrockPlayer.State.PLAYING);
@@ -261,7 +261,7 @@ public class BedrockLoginHandler {
     }
 
     private void sendEmptyChunks(ChannelHandlerContext ctx, InetSocketAddress sender, BedrockPlayer player) {
-        int radius = 3;
+        int radius = 1;
         int chunkX = (int) player.getX() >> 4;
         int chunkZ = (int) player.getZ() >> 4;
         int count = 0;
@@ -277,22 +277,19 @@ public class BedrockLoginHandler {
     private void sendEmptyChunk(ChannelHandlerContext ctx, InetSocketAddress sender, int chunkX, int chunkZ) {
         try {
             ByteBuf chunkData = Unpooled.buffer();
-
-            // 25 secciones de bioma — formato correcto 1.21
             for (int i = 0; i < 25; i++) {
-                chunkData.writeByte(0x00); // 0 bits = single value palette
-                writeVarInt(chunkData, 1); // plains biome ID = 1
+                chunkData.writeByte(0x00);
+                writeVarInt(chunkData, 1);
             }
-            // border blocks = 0
             writeVarInt(chunkData, 0);
 
             ByteBuf buf = Unpooled.buffer();
             writeVarInt(buf, PACKET_LEVEL_CHUNK);
             writeZigZagInt(buf, chunkX);
             writeZigZagInt(buf, chunkZ);
-            writeVarInt(buf, 0);     // overworld
-            writeVarInt(buf, 0);     // subchunk count = 0 (todo aire)
-            buf.writeBoolean(false); // cache disabled
+            writeVarInt(buf, 0);
+            writeVarInt(buf, 0);
+            buf.writeBoolean(false);
             writeVarInt(buf, chunkData.readableBytes());
             buf.writeBytes(chunkData);
             chunkData.release();
