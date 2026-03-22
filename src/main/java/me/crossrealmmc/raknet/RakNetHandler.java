@@ -193,9 +193,13 @@ public class RakNetHandler extends SimpleChannelInboundHandler<DatagramPacket> {
                         byte[][] parts = fragmentBuffers.remove(fragmentId);
                         fragmentCounts.remove(fragmentId);
                         int totalSize = 0;
-                        for (byte[] part : parts) totalSize += part.length;
+                        for (byte[] part : parts) {
+                            if (part != null) totalSize += part.length;
+                        }
                         ByteBuf assembled = Unpooled.buffer(totalSize);
-                        for (byte[] part : parts) assembled.writeBytes(part);
+                        for (byte[] part : parts) {
+                            if (part != null) assembled.writeBytes(part);
+                        }
                         plugin.log("&aFragmento ensamblado: &e" + totalSize + " bytes");
                         processGamePayload(ctx, assembled, sender);
                         assembled.release();
@@ -390,8 +394,9 @@ public class RakNetHandler extends SimpleChannelInboundHandler<DatagramPacket> {
         messageIndex.set(0);
         orderIndex.set(0);
         sentPacketCache.clear();
+        fragmentBuffers.clear();
+        fragmentCounts.clear();
 
-        // Resetear estado del jugador para nueva conexion
         BedrockPlayer existingPlayer = registry.get(sender);
         if (existingPlayer != null) {
             existingPlayer.setState(BedrockPlayer.State.HANDSHAKING);
@@ -424,6 +429,8 @@ public class RakNetHandler extends SimpleChannelInboundHandler<DatagramPacket> {
             registry.remove(sender);
         }
         sentPacketCache.clear();
+        fragmentBuffers.clear();
+        fragmentCounts.clear();
         plugin.log("&cDesconexion: &f" + sender.getAddress().getHostAddress());
     }
 
