@@ -39,7 +39,10 @@ public class RakNetServer {
             ServerBootstrap bootstrap = new ServerBootstrap()
                 .group(bossGroup, workerGroup)
                 .channelFactory(RakChannelFactory.server(NioDatagramChannel.class))
-                .option(RakChannelOption.RAK_ADVERTISEMENT, buildAdvertisement(port))
+                .option(RakChannelOption.RAK_ADVERTISEMENT,
+                    Unpooled.unreleasableBuffer(
+                        Unpooled.copiedBuffer(buildAdvertisementString(port), StandardCharsets.UTF_8)
+                    ))
                 .option(RakChannelOption.RAK_MAX_CONNECTIONS, 100)
                 .option(RakChannelOption.RAK_GUID, SERVER_GUID)
                 .childHandler(new ChannelInitializer<Channel>() {
@@ -56,10 +59,14 @@ public class RakNetServer {
             // Actualizar advertisement cada 5 segundos
             Bukkit.getScheduler().runTaskTimerAsynchronously(plugin, () -> {
                 if (channel != null && channel.isActive()) {
-                    channel.config().setOption(
-                        RakChannelOption.RAK_ADVERTISEMENT,
-                        buildAdvertisement(port)
-                    );
+                    try {
+                        channel.config().setOption(
+                            RakChannelOption.RAK_ADVERTISEMENT,
+                            Unpooled.unreleasableBuffer(
+                                Unpooled.copiedBuffer(buildAdvertisementString(port), StandardCharsets.UTF_8)
+                            )
+                        );
+                    } catch (Exception ignored) {}
                 }
             }, 100L, 100L);
 
@@ -69,18 +76,16 @@ public class RakNetServer {
         }
     }
 
-    private ByteBuf buildAdvertisement(int port) {
+    private String buildAdvertisementString(int port) {
         String motd1 = clean(plugin.getConfigManager().getMotdLine1());
         String motd2 = clean(plugin.getConfigManager().getMotdLine2());
         int online = Bukkit.getOnlinePlayers().size();
         int max = plugin.getConfigManager().getMaxBedrockPlayers();
 
-        String adv = "MCPE;" + motd1 + ";924;26.3;"
+        return "MCPE;" + motd1 + ";924;26.3;"
             + online + ";" + max + ";"
             + SERVER_GUID + ";" + motd2
             + ";Survival;1;" + port + ";19133;1";
-
-        return Unpooled.copiedBuffer(adv, StandardCharsets.UTF_8);
     }
 
     private String clean(String s) {
