@@ -13,7 +13,8 @@ public class PacketTranslator {
 
     private final CrossRealmMC plugin;
     private final AtomicInteger sendSequence;
-    private final AtomicInteger orderIndex = new AtomicInteger(0);
+    private final AtomicInteger messageIndex;
+    private final AtomicInteger orderIndex;
 
     public static final int PACKET_LOGIN                = 0x01;
     public static final int PACKET_RESOURCE_PACK_RESP   = 0x08;
@@ -24,9 +25,12 @@ public class PacketTranslator {
     public static final int PACKET_DISCONNECT           = 0x05;
     public static final int PACKET_REQUEST_CHUNK_RADIUS = 0x45;
 
-    public PacketTranslator(CrossRealmMC plugin, AtomicInteger sendSequence) {
+    public PacketTranslator(CrossRealmMC plugin, AtomicInteger sendSequence,
+            AtomicInteger messageIndex, AtomicInteger orderIndex) {
         this.plugin = plugin;
         this.sendSequence = sendSequence;
+        this.messageIndex = messageIndex;
+        this.orderIndex = orderIndex;
     }
 
     public void handleIncoming(ByteBuf buf, InetSocketAddress sender,
@@ -82,36 +86,33 @@ public class PacketTranslator {
             int protocol = buf.readInt();
             plugin.debugLog("RequestNetworkSettings | Protocolo: " + protocol);
 
-            // Payload NetworkSettings
             ByteBuf payload = Unpooled.buffer();
             BedrockLoginHandler.writeVarInt(payload, 0x0F);
-            payload.writeShortLE(65535); // threshold alto = sin compresion
-            payload.writeShortLE(0);     // algorithm=zlib
+            payload.writeShortLE(65535);
+            payload.writeShortLE(0);
             payload.writeBoolean(false);
             payload.writeByte(0);
             payload.writeFloatLE(0);
 
-            // Envolver en 0xFE
             ByteBuf gamePacket = Unpooled.buffer();
             gamePacket.writeByte(0xFE);
             BedrockLoginHandler.writeVarInt(gamePacket, payload.readableBytes());
             gamePacket.writeBytes(payload);
             payload.release();
 
-            // Reliable ordered
             ByteBuf frame = Unpooled.buffer();
             frame.writeByte(0x84);
             frame.writeMediumLE(sendSequence.getAndIncrement());
             frame.writeByte(0x60);
             frame.writeShort(gamePacket.readableBytes() * 8);
-            frame.writeMediumLE(0);
+            frame.writeMediumLE(messageIndex.getAndIncrement());
             frame.writeMediumLE(orderIndex.getAndIncrement());
             frame.writeByte(0);
             frame.writeBytes(gamePacket);
             gamePacket.release();
 
             ctx.writeAndFlush(new DatagramPacket(frame, sender));
-            plugin.debugLog("NetworkSettings enviado | 0xFE + ordered + threshold=65535");
+            plugin.debugLog("NetworkSettings enviado | messageIndex compartido");
         } catch (Exception e) {
             plugin.debugLog("Error NetworkSettings: " + e.getMessage());
         }
