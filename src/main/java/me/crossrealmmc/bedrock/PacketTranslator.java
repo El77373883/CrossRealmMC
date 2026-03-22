@@ -86,11 +86,14 @@ public class PacketTranslator {
             int protocol = buf.readInt();
             plugin.debugLog("RequestNetworkSettings | Protocolo: " + protocol);
 
-            // NetworkSettings — solo threshold y algorithm
+            // NetworkSettings — packet ID correcto 0x8F
             ByteBuf payload = Unpooled.buffer();
-            BedrockLoginHandler.writeVarInt(payload, 0x0F);
-            payload.writeShortLE(0);   // compression_threshold
-            payload.writeShortLE(0);   // compression_algorithm = zlib
+            BedrockLoginHandler.writeVarInt(payload, 0x8F);
+            payload.writeShortLE(0);     // compression_threshold
+            payload.writeShortLE(0);     // compression_algorithm = zlib
+            payload.writeBoolean(false); // client_throttle_enabled
+            payload.writeByte(0);        // client_throttle_threshold
+            payload.writeFloatLE(0);     // client_throttle_scalar
 
             // Envolver en 0xFE
             ByteBuf gamePacket = Unpooled.buffer();
@@ -112,7 +115,7 @@ public class PacketTranslator {
             gamePacket.release();
 
             ctx.writeAndFlush(new DatagramPacket(frame, sender));
-            plugin.debugLog("NetworkSettings enviado | simple");
+            plugin.debugLog("NetworkSettings enviado | ID=0x8F");
         } catch (Exception e) {
             plugin.debugLog("Error NetworkSettings: " + e.getMessage());
         }
