@@ -34,7 +34,7 @@ public class PacketTranslator {
         if (!buf.isReadable()) return;
 
         int packetId = readVarInt(buf);
-        plugin.debugLog("Paquete Bedrock entrante: 0x" + String.format("%02X", packetId)
+        plugin.debugLog("Paquete Bedrock: 0x" + String.format("%02X", packetId)
                 + " | Estado: " + player.getState()
                 + " | Jugador: " + (player.getUsername() != null ? player.getUsername() : "unknown"));
 
@@ -63,16 +63,42 @@ public class PacketTranslator {
             case PACKET_PLAYER_ACTION:
                 handlePlayerAction(buf, player);
                 break;
+            case 0xC1: // RequestNetworkSettings
+                handleRequestNetworkSettings(ctx, buf, player, loginHandler);
+                break;
             default:
                 plugin.debugLog("Paquete no manejado: 0x" + String.format("%02X", packetId));
                 break;
         }
     }
 
+    private void handleRequestNetworkSettings(
+            io.netty.channel.ChannelHandlerContext ctx,
+            ByteBuf buf, BedrockPlayer player,
+            BedrockLoginHandler loginHandler) {
+        try {
+            int protocol = buf.readInt();
+            plugin.debugLog("RequestNetworkSettings | Protocolo: " + protocol);
+
+            ByteBuf payload = Unpooled.buffer();
+            BedrockLoginHandler.writeVarInt(payload, 0x0F);
+            payload.writeShortLE(0);   // threshold=0
+            payload.writeShortLE(0);   // algorithm=zlib
+            payload.writeBoolean(false);
+            payload.writeByte(0);
+            payload.writeFloatLE(0);
+
+            loginHandler.sendGamePacketPublic(ctx, null, payload);
+            plugin.debugLog("NetworkSettings enviado");
+        } catch (Exception e) {
+            plugin.debugLog("Error NetworkSettings: " + e.getMessage());
+        }
+    }
+
     private void handleMovePlayer(ByteBuf buf, BedrockPlayer player) {
         if (!buf.isReadable(28)) return;
         try {
-            long runtimeId = readVarLong(buf);
+            readVarLong(buf);
             float x     = buf.readFloatLE();
             float y     = buf.readFloatLE();
             float z     = buf.readFloatLE();
@@ -86,9 +112,9 @@ public class PacketTranslator {
     private void handleChat(ByteBuf buf, BedrockPlayer player) {
         if (player.getUsername() == null) return;
         try {
-            String type   = readString(buf);
-            String source = readString(buf);
-            String msg    = readString(buf);
+            readString(buf);
+            readString(buf);
+            String msg = readString(buf);
             if (msg != null && !msg.isEmpty()) {
                 String prefix = plugin.getConfigManager().getBedrockChatPrefix();
                 final String finalMsg = msg;
