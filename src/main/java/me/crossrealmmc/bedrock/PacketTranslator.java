@@ -98,14 +98,16 @@ public class PacketTranslator {
             ByteBuf frame = Unpooled.buffer();
             frame.writeByte(0x84);
             frame.writeMediumLE(sendSequence.getAndIncrement());
-            frame.writeByte(0x40);
+            frame.writeByte(0x60);                        // reliable ordered
             frame.writeShort(gamePacket.readableBytes() * 8);
-            frame.writeMediumLE(0);
+            frame.writeMediumLE(0);                       // message index
+            frame.writeMediumLE(0);                       // order index
+            frame.writeByte(0);                           // order channel
             frame.writeBytes(gamePacket);
             gamePacket.release();
 
             ctx.writeAndFlush(new DatagramPacket(frame, sender));
-            plugin.debugLog("NetworkSettings enviado | zlib");
+            plugin.debugLog("NetworkSettings enviado | reliable ordered");
         } catch (Exception e) {
             plugin.debugLog("Error NetworkSettings: " + e.getMessage());
         }
