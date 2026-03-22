@@ -19,12 +19,12 @@ public class PacketOpenConnectionReply2 {
 
     public ByteBuf encode() {
         ByteBuf buf = PacketUtils.newBuffer();
-        buf.writeByte(0x08); // ID_OPEN_CONNECTION_REPLY_2
+        buf.writeByte(0x08);
         PacketUtils.writeMagic(buf);
         buf.writeLong(RakNetServer.SERVER_GUID);
         PacketUtils.writeAddress(buf, clientAddress);
         buf.writeShort(mtu);
-        buf.writeBoolean(false); // encryption
+        buf.writeBoolean(false);
         return buf;
     }
 }
