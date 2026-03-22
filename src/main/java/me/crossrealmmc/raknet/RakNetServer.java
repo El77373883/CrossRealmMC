@@ -1,81 +1,62 @@
 package me.crossrealmmc.raknet;
 
-import io.netty.bootstrap.Bootstrap;
+import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.*;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioDatagramChannel;
+import io.netty.util.concurrent.DefaultThreadFactory;
 import me.crossrealmmc.CrossRealmMC;
-import org.bukkit.Bukkit;
+import org.cloudburstmc.netty.channel.raknet.RakChannelFactory;
+import org.cloudburstmc.netty.channel.raknet.config.RakChannelOption;
+
+import java.net.InetSocketAddress;
 
 public class RakNetServer {
 
     private final CrossRealmMC plugin;
     private Channel channel;
-    private NioEventLoopGroup group;
-    private boolean running = false;
-
-    // GUID unico del servidor
-    public static final long SERVER_GUID = System.currentTimeMillis();
+    private NioEventLoopGroup bossGroup;
+    private NioEventLoopGroup workerGroup;
 
     public RakNetServer(CrossRealmMC plugin) {
         this.plugin = plugin;
     }
 
-    public void start() {
-        String ip = plugin.getConfigManager().getBedrockIp();
-        int port = plugin.getConfigManager().getBedrockPort();
+    public void start(String host, int port) throws Exception {
+        bossGroup = new NioEventLoopGroup(1, new DefaultThreadFactory("RakNet Boss"));
+        workerGroup = new NioEventLoopGroup(4, new DefaultThreadFactory("RakNet Worker"));
 
-        group = new NioEventLoopGroup();
-        try {
-            Bootstrap bootstrap = new Bootstrap()
-                    .group(group)
-                    .channel(NioDatagramChannel.class)
-                    .option(ChannelOption.SO_BROADCAST, true)
-                    .option(ChannelOption.SO_RCVBUF, 1024 * 1024 * 4)
-                    .option(ChannelOption.SO_SNDBUF, 1024 * 1024 * 4)
-                    .handler(new ChannelInitializer<NioDatagramChannel>() {
-                        @Override
-                        protected void initChannel(NioDatagramChannel ch) {
-                            ch.pipeline().addLast(new RakNetHandler(plugin));
-                        }
-                    });
+        String motd1 = plugin.getConfigManager().getMotdLine1();
+        String motd2 = plugin.getConfigManager().getMotdLine2();
+        int maxPlayers = plugin.getConfigManager().getMaxBedrockPlayers();
+        long guid = System.currentTimeMillis();
 
-            ChannelFuture future = bootstrap.bind(ip, port).sync();
-            channel = future.channel();
-            running = true;
-            plugin.log(plugin.getConfigManager().getMessage("bridge-started",
-                    "{port}", String.valueOf(port)));
-            plugin.debugLog("RakNet UDP escuchando en " + ip + ":" + port);
+        String advertisement = "MCPE;" + motd1 + ";924;26.3;0;" + maxPlayers + ";"
+            + guid + ";" + motd2 + ";Survival;1;" + port + ";19133;1";
 
-        } catch (Exception e) {
-            running = false;
-            plugin.log(plugin.getConfigManager().getMessage("bridge-failed",
-                    "{port}", String.valueOf(port)));
-            plugin.getLogger().severe("Error RakNet: " + e.getMessage());
+        ServerBootstrap bootstrap = new ServerBootstrap()
+            .group(bossGroup, workerGroup)
+            .channelFactory(RakChannelFactory.server(NioDatagramChannel.class))
+            .option(RakChannelOption.RAK_ADVERTISEMENT,
+                io.netty.buffer.Unpooled.wrappedBuffer(
+                    advertisement.getBytes(java.nio.charset.StandardCharsets.UTF_8)))
+            .option(RakChannelOption.RAK_MAX_CONNECTIONS, 100)
+            .option(RakChannelOption.RAK_GUID, guid)
+            .childHandler(new ChannelInitializer<Channel>() {
+                @Override
+                protected void initChannel(Channel ch) {
+                    ch.pipeline().addLast(new BedrockSessionHandler(plugin));
+                }
+            });
 
-            // Auto-restart si esta activado
-            if (plugin.getConfigManager().isAutoRestartEnabled()) {
-                int delay = plugin.getConfigManager().getAutoRestartDelay();
-                plugin.debugLog("Intentando reiniciar bridge en " + delay + " segundos...");
-                Bukkit.getScheduler().runTaskLaterAsynchronously(plugin, () -> {
-                    stop();
-                    start();
-                    plugin.log(plugin.getConfigManager().getMessage("bridge-restarted"));
-                }, delay * 20L);
-            }
-        }
+        channel = bootstrap.bind(new InetSocketAddress(host, port)).sync().channel();
+        plugin.log("&a[CrossRealmMC] &fBridge Bedrock iniciado en &e" + host + ":" + port);
     }
 
     public void stop() {
-        running = false;
-        if (channel != null) {
-            try { channel.close().sync(); } catch (Exception ignored) {}
-        }
-        if (group != null) {
-            group.shutdownGracefully();
-        }
-        plugin.debugLog("RakNet server detenido.");
+        if (channel != null) channel.close();
+        if (bossGroup != null) bossGroup.shutdownGracefully();
+        if (workerGroup != null) workerGroup.shutdownGracefully();
+        plugin.log("&c[CrossRealmMC] Bridge Bedrock detenido");
     }
-
-    public boolean isRunning() { return running; }
 }
