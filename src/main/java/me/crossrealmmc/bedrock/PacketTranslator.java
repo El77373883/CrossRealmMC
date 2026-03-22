@@ -82,7 +82,7 @@ public class PacketTranslator {
             int protocol = buf.readInt();
             plugin.debugLog("RequestNetworkSettings | Protocolo: " + protocol);
 
-            // Payload NetworkSettings
+            // Payload NetworkSettings sin 0xFE
             ByteBuf payload = Unpooled.buffer();
             BedrockLoginHandler.writeVarInt(payload, 0x0F);
             payload.writeShortLE(0);   // threshold=0
@@ -91,27 +91,20 @@ public class PacketTranslator {
             payload.writeByte(0);
             payload.writeFloatLE(0);
 
-            // Envolver en 0xFE
-            ByteBuf gamePacket = Unpooled.buffer();
-            gamePacket.writeByte(0xFE);
-            BedrockLoginHandler.writeVarInt(gamePacket, payload.readableBytes());
-            gamePacket.writeBytes(payload);
-            payload.release();
-
-            // Enviar en FrameSet reliable ordered
+            // Enviar en FrameSet reliable ordered directo
             ByteBuf frame = Unpooled.buffer();
             frame.writeByte(0x84);
             frame.writeMediumLE(sendSequence.getAndIncrement());
-            frame.writeByte(0x60);                         // reliable ordered
-            frame.writeShort(gamePacket.readableBytes() * 8);
-            frame.writeMediumLE(0);                        // message index
+            frame.writeByte(0x60);                             // reliable ordered
+            frame.writeShort(payload.readableBytes() * 8);
+            frame.writeMediumLE(0);                            // message index
             frame.writeMediumLE(orderIndex.getAndIncrement()); // order index
-            frame.writeByte(0);                            // order channel
-            frame.writeBytes(gamePacket);
-            gamePacket.release();
+            frame.writeByte(0);                                // order channel
+            frame.writeBytes(payload);
+            payload.release();
 
             ctx.writeAndFlush(new DatagramPacket(frame, sender));
-            plugin.debugLog("NetworkSettings enviado | reliable ordered");
+            plugin.debugLog("NetworkSettings enviado | sin 0xFE");
         } catch (Exception e) {
             plugin.debugLog("Error NetworkSettings: " + e.getMessage());
         }
