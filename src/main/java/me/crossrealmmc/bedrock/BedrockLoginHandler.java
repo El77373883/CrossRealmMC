@@ -281,7 +281,7 @@ public class BedrockLoginHandler {
     private void sendCreativeContent(ChannelHandlerContext ctx, InetSocketAddress sender) {
         ByteBuf buf = Unpooled.buffer();
         writeVarInt(buf, 0x91);
-        writeVarInt(buf, 0); // 0 items
+        writeVarInt(buf, 0);
         sendGamePacket(ctx, sender, buf);
         plugin.log("&aCreativeContent enviado");
     }
@@ -311,19 +311,25 @@ public class BedrockLoginHandler {
     private void sendEmptyChunk(ChannelHandlerContext ctx, InetSocketAddress sender, int chunkX, int chunkZ) {
         try {
             ByteBuf chunkData = Unpooled.buffer();
+
+            // 1 subchunk de aire
+            chunkData.writeByte(8);    // subchunk version
+            chunkData.writeByte(0);    // 0 layers (aire)
+
+            // 25 secciones de bioma
             for (int i = 0; i < 25; i++) {
                 chunkData.writeByte(0x00);
                 writeVarInt(chunkData, 1);
             }
-            writeVarInt(chunkData, 0);
+            writeVarInt(chunkData, 0); // border blocks
 
             ByteBuf buf = Unpooled.buffer();
             writeVarInt(buf, PACKET_LEVEL_CHUNK);
             writeZigZagInt(buf, chunkX);
             writeZigZagInt(buf, chunkZ);
-            writeVarInt(buf, 0);
-            writeVarInt(buf, 0);
-            buf.writeBoolean(false);
+            writeVarInt(buf, 0);      // overworld
+            writeVarInt(buf, 1);      // 1 subchunk
+            buf.writeBoolean(false);  // cache disabled
             writeVarInt(buf, chunkData.readableBytes());
             buf.writeBytes(chunkData);
             chunkData.release();
