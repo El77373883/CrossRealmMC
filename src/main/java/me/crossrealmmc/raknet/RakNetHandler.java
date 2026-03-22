@@ -207,25 +207,29 @@ public class RakNetHandler extends SimpleChannelInboundHandler<DatagramPacket> {
             BedrockPlayer player = registry.getOrCreate(sender);
             if (!buf.isReadable()) return;
 
-            // Leer byte de algoritmo de compresion
-            int algorithm = buf.readByte() & 0xFF;
-            plugin.debugLog("Batch algoritmo: 0x" + String.format("%02X", algorithm));
-
-            byte[] data = new byte[buf.readableBytes()];
-            buf.readBytes(data);
-
             byte[] decompressed;
-            if (algorithm == 0xFF) {
-                // Sin compresion
-                plugin.log("&aSin compresion: &e" + data.length + " bytes");
+
+            if (player.getState() == BedrockPlayer.State.HANDSHAKING) {
+                // Antes de NetworkSettings NO hay byte de algoritmo
+                byte[] data = new byte[buf.readableBytes()];
+                buf.readBytes(data);
+                plugin.debugLog("Batch HANDSHAKING sin algoritmo: " + data.length + " bytes");
                 decompressed = data;
-            } else if (algorithm == 0x00) {
-                // Zlib
-                decompressed = tryDecompress(data);
             } else {
-                plugin.debugLog("Algoritmo desconocido: 0x" + String.format("%02X", algorithm)
-                    + " intentando sin compresion");
-                decompressed = data;
+                // Despues de NetworkSettings SI hay byte de algoritmo
+                int algorithm = buf.readByte() & 0xFF;
+                plugin.debugLog("Batch algoritmo: 0x" + String.format("%02X", algorithm));
+                byte[] data = new byte[buf.readableBytes()];
+                buf.readBytes(data);
+                if (algorithm == 0x00) {
+                    decompressed = tryDecompress(data);
+                } else if (algorithm == 0xFF) {
+                    plugin.log("&aSin compresion: &e" + data.length + " bytes");
+                    decompressed = data;
+                } else {
+                    plugin.debugLog("Algoritmo desconocido: 0x" + String.format("%02X", algorithm));
+                    decompressed = data;
+                }
             }
 
             ByteBuf decompressedBuf = Unpooled.wrappedBuffer(decompressed);
