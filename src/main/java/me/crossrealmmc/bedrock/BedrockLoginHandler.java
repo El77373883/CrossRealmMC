@@ -100,7 +100,12 @@ public class BedrockLoginHandler {
         if (!buf.isReadable()) return;
         int status = buf.readByte() & 0xFF;
         plugin.log("&aResourcePackResponse: &e" + status);
-        if (status == 4 || status == 2 || status == 3 || status == 1) {
+
+        if (status == 3 || status == 2) {
+            // Bedrock confirma que tiene los packs — enviar stack
+            sendResourcePackStack(ctx, sender);
+        } else if (status == 4 || status == 1) {
+            // Bedrock listo — enviar StartGame
             sendStartGame(ctx, sender, player);
         }
     }
@@ -114,7 +119,6 @@ public class BedrockLoginHandler {
     }
 
     private void sendResourcePacksInfo(ChannelHandlerContext ctx, InetSocketAddress sender) {
-        // ResourcePacksInfo
         ByteBuf buf = Unpooled.buffer();
         writeVarInt(buf, PACKET_RESOURCE_PACKS_INFO);
         buf.writeBoolean(false); // mustAccept
@@ -124,17 +128,18 @@ public class BedrockLoginHandler {
         buf.writeShortLE(0);     // resource pack count
         sendGamePacket(ctx, sender, buf);
         plugin.log("&aResourcePacksInfo enviado");
+    }
 
-        // ResourcePackStack — requerido en 1.21
-        ByteBuf buf2 = Unpooled.buffer();
-        writeVarInt(buf2, PACKET_RESOURCE_PACK_STACK);
-        buf2.writeBoolean(false); // mustAccept
-        writeVarInt(buf2, 0);     // behavior pack count
-        writeVarInt(buf2, 0);     // resource pack count
-        writeString(buf2, "1.21.1"); // game version
-        buf2.writeIntLE(0);       // experiments count
-        buf2.writeBoolean(false); // experiments previously used
-        sendGamePacket(ctx, sender, buf2);
+    private void sendResourcePackStack(ChannelHandlerContext ctx, InetSocketAddress sender) {
+        ByteBuf buf = Unpooled.buffer();
+        writeVarInt(buf, PACKET_RESOURCE_PACK_STACK);
+        buf.writeBoolean(false); // mustAccept
+        writeVarInt(buf, 0);     // behavior pack count
+        writeVarInt(buf, 0);     // resource pack count
+        writeString(buf, "1.21.1"); // game version
+        buf.writeIntLE(0);       // experiments count
+        buf.writeBoolean(false); // experiments previously used
+        sendGamePacket(ctx, sender, buf);
         plugin.log("&aResourcePackStack enviado");
     }
 
