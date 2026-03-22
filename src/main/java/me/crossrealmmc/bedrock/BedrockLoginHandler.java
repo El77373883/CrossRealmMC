@@ -277,20 +277,22 @@ public class BedrockLoginHandler {
     private void sendEmptyChunk(ChannelHandlerContext ctx, InetSocketAddress sender, int chunkX, int chunkZ) {
         try {
             ByteBuf chunkData = Unpooled.buffer();
+
+            // 25 secciones de bioma — formato correcto 1.21
             for (int i = 0; i < 25; i++) {
-                chunkData.writeByte(0x01);
-                chunkData.writeByte(0x00);
-                writeVarInt(chunkData, 1);
+                chunkData.writeByte(0x00); // 0 bits = single value palette
+                writeVarInt(chunkData, 1); // plains biome ID = 1
             }
+            // border blocks = 0
             writeVarInt(chunkData, 0);
 
             ByteBuf buf = Unpooled.buffer();
             writeVarInt(buf, PACKET_LEVEL_CHUNK);
             writeZigZagInt(buf, chunkX);
             writeZigZagInt(buf, chunkZ);
-            writeVarInt(buf, 0);
-            writeVarInt(buf, -1);
-            buf.writeBoolean(false);
+            writeVarInt(buf, 0);     // overworld
+            writeVarInt(buf, 0);     // subchunk count = 0 (todo aire)
+            buf.writeBoolean(false); // cache disabled
             writeVarInt(buf, chunkData.readableBytes());
             buf.writeBytes(chunkData);
             chunkData.release();
