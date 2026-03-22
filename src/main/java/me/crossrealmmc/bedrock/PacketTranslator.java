@@ -94,9 +94,11 @@ public class PacketTranslator {
             payload.writeByte(0);
             payload.writeFloatLE(0);
 
+            // Restaurar VarInt de longitud
             ByteBuf gamePacket = Unpooled.buffer();
             gamePacket.writeByte(0xFE);
-            gamePacket.writeBytes(payload); // sin VarInt de longitud
+            BedrockLoginHandler.writeVarInt(gamePacket, payload.readableBytes());
+            gamePacket.writeBytes(payload);
             payload.release();
 
             ByteBuf frame = Unpooled.buffer();
