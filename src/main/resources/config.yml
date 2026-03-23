@@ -6,8 +6,8 @@
 server:
   java-ip: "127.0.0.1"
   java-port: 26573
-  bedrock-ip: "0.0.0.0"
-  bedrock-port: 30000
+  bedrock-ip: "mc304.boxtoplay.com"
+  bedrock-port: 26573
   motd-line1: "&bCrossRealmMC &7| Java + Bedrock"
   motd-line2: "&aConecta desde cualquier edicion!"
   max-bedrock-players: 0
