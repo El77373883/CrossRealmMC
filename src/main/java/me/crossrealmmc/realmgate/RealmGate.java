@@ -270,7 +270,6 @@ public class RealmGate {
                     plugin.debugLog("LoginSuccess: " + name);
                     sendLoginAcknowledged(out);
                     inConfigState = true;
-                    // ✅ Solo ClientSettings, sin brand
                     sendClientSettings(out, compressionThreshold);
                 } else if (id == 0x00) {
                     plugin.debugLog("Disconnect login: " + readJavaString(pkt));
@@ -289,10 +288,14 @@ public class RealmGate {
                     plugin.debugLog("Disconnect config: " + readJavaString(pkt));
                     return false;
                 } else if (id == 0x01) {
+                    // ✅ FIX: 0x01 en config = PluginMessage del servidor, ignorar
+                    plugin.debugLog("PluginMessage servidor ignorado: 0x01");
+                } else if (id == 0x05) {
+                    // Ping real en config state
                     long pingId = pkt.readLong();
                     ByteArrayOutputStream pongContent = new ByteArrayOutputStream();
                     DataOutputStream pongData = new DataOutputStream(pongContent);
-                    writeVarInt(pongData, 0x02);
+                    writeVarInt(pongData, 0x04);
                     pongData.writeLong(pingId);
                     sendCompressed(out, pongContent.toByteArray(), compressionThreshold);
                     plugin.debugLog("Pong config enviado");
