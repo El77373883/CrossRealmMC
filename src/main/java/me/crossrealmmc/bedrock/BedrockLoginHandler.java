@@ -283,6 +283,12 @@ public class BedrockLoginHandler {
         }, 20L, 100L);
     }
 
+    public void sendStartGamePost(ChannelHandlerContext ctx, InetSocketAddress sender, BedrockPlayer player) {
+        plugin.debugLog("SetLocalPlayerAsInitialized → reenviando chunks");
+        sendNetworkChunkPublisherUpdate(ctx, sender, player);
+        sendEmptyChunks(ctx, sender, player);
+    }
+
     private void sendBiomeDefinitionList(ChannelHandlerContext ctx, InetSocketAddress sender) {
         ByteBuf buf = Unpooled.buffer();
         writeVarInt(buf, 0x7A);
@@ -357,15 +363,30 @@ public class BedrockLoginHandler {
 
     private void sendEmptyChunk(ChannelHandlerContext ctx, InetSocketAddress sender, int chunkX, int chunkZ) {
         try {
+            ByteBuf chunkData = Unpooled.buffer();
+
+            for (int i = 0; i < 24; i++) {
+                chunkData.writeByte(8);
+                chunkData.writeByte(2);
+                chunkData.writeByte(1);
+                writeVarInt(chunkData, 0);
+                chunkData.writeByte(1);
+                writeVarInt(chunkData, 0);
+            }
+
+            chunkData.writeBytes(EMPTY_CHUNK_PAYLOAD);
+
             ByteBuf buf = Unpooled.buffer();
             writeVarInt(buf, PACKET_LEVEL_CHUNK);
             writeZigZagInt(buf, chunkX);
             writeZigZagInt(buf, chunkZ);
-            writeVarInt(buf, 0);           // dimension = overworld
-            writeVarInt(buf, 0xFFFFFFFF);  // subChunksLength = -1 → modo SubChunkRequest
-            buf.writeBoolean(false);       // cacheEnabled
-            writeVarInt(buf, EMPTY_CHUNK_PAYLOAD.length);
-            buf.writeBytes(EMPTY_CHUNK_PAYLOAD);
+            writeVarInt(buf, 0);
+            writeVarInt(buf, 24);
+            buf.writeBoolean(false);
+            writeVarInt(buf, chunkData.readableBytes());
+            buf.writeBytes(chunkData);
+            chunkData.release();
+
             sendGamePacket(ctx, sender, buf);
         } catch (Exception e) {
             plugin.debugLog("Error enviando chunk: " + e.getMessage());
