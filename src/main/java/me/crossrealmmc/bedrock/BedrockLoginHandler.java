@@ -37,6 +37,26 @@ public class BedrockLoginHandler {
     public static final int STATUS_FAILED_CLIENT = 1;
     public static final int STATUS_PLAYER_SPAWN  = 3;
 
+    // Formato exacto de Geyser (MIT License) - https://github.com/GeyserMC/Geyser
+    // EMPTY_BIOME_DATA = BlockStorage singleton con air
+    private static final byte[] EMPTY_BIOME_DATA = {0x01, 0x01, 0x00};
+    // Marker = (127 << 1) | 1 = 0xFF — "carry biome from previous section"
+    private static final byte BIOME_MARKER = (byte) 0xFF;
+    // Overworld subchunks = 384 / 16 = 24
+    private static final int OVERWORLD_SUBCHUNK_COUNT = 24;
+
+    // Payload pre-calculado: bioma + 23 markers + border blocks(0)
+    private static final byte[] EMPTY_CHUNK_PAYLOAD;
+    static {
+        int total = EMPTY_BIOME_DATA.length + OVERWORLD_SUBCHUNK_COUNT;
+        EMPTY_CHUNK_PAYLOAD = new byte[total];
+        System.arraycopy(EMPTY_BIOME_DATA, 0, EMPTY_CHUNK_PAYLOAD, 0, EMPTY_BIOME_DATA.length);
+        for (int i = 0; i < OVERWORLD_SUBCHUNK_COUNT - 1; i++) {
+            EMPTY_CHUNK_PAYLOAD[EMPTY_BIOME_DATA.length + i] = BIOME_MARKER;
+        }
+        EMPTY_CHUNK_PAYLOAD[total - 1] = 0; // border blocks (Edu edition only)
+    }
+
     public BedrockLoginHandler(CrossRealmMC plugin, AtomicInteger sendSequence,
             AtomicInteger messageIndex, AtomicInteger orderIndex,
             Map<Integer, byte[]> sentPacketCache) {
@@ -341,25 +361,18 @@ public class BedrockLoginHandler {
         plugin.log("&aChunks vacíos enviados: &e" + count);
     }
 
+    // Formato exacto de Geyser (MIT License) - https://github.com/GeyserMC/Geyser
     private void sendEmptyChunk(ChannelHandlerContext ctx, InetSocketAddress sender, int chunkX, int chunkZ) {
         try {
-            // Solo biomas — modo SubChunkRequest (subChunkCount = -1)
-            ByteBuf biomes = Unpooled.buffer();
-            for (int i = 0; i < 25; i++) {
-                biomes.writeByte(1);       // isRuntime
-                writeVarInt(biomes, 1);    // plains
-            }
-            writeVarInt(biomes, 0);        // border blocks
-
             ByteBuf buf = Unpooled.buffer();
             writeVarInt(buf, PACKET_LEVEL_CHUNK);
-            writeZigZagInt(buf, chunkX);
-            writeZigZagInt(buf, chunkZ);
-            writeVarInt(buf, 0xFFFFFFFF);  // subChunkCount = -1 → modo SubChunkRequest
-            buf.writeBoolean(false);       // cacheEnabled
-            writeVarInt(buf, biomes.readableBytes());
-            buf.writeBytes(biomes);
-            biomes.release();
+            writeZigZagInt(buf, chunkX);       // chunkX
+            writeZigZagInt(buf, chunkZ);       // chunkZ
+            writeVarInt(buf, 0);               // dimension = overworld
+            writeVarInt(buf, 0);               // subChunksLength = 0
+            buf.writeBoolean(false);           // cacheEnabled = false
+            writeVarInt(buf, EMPTY_CHUNK_PAYLOAD.length);
+            buf.writeBytes(EMPTY_CHUNK_PAYLOAD);
 
             sendGamePacket(ctx, sender, buf);
         } catch (Exception e) {
@@ -367,12 +380,10 @@ public class BedrockLoginHandler {
         }
     }
 
-    // Responde a un SubChunkRequest con aire
     public void sendSubChunkResponse(ChannelHandlerContext ctx, InetSocketAddress sender,
             int dimension, int chunkX, int subChunkY, int chunkZ) {
         try {
             ByteBuf subChunkData = Unpooled.buffer();
-            // Subchunk version 8, 2 layers, aire
             subChunkData.writeByte(8);
             subChunkData.writeByte(2);
             subChunkData.writeByte(1);
@@ -381,12 +392,12 @@ public class BedrockLoginHandler {
             writeVarInt(subChunkData, 0);
 
             ByteBuf buf = Unpooled.buffer();
-            writeVarInt(buf, 0x67);        // SubChunkPacket
+            writeVarInt(buf, 0x67);
             writeVarInt(buf, dimension);
             writeZigZagInt(buf, chunkX);
             writeVarInt(buf, subChunkY);
             writeZigZagInt(buf, chunkZ);
-            buf.writeByte(0);             // requestResult = success
+            buf.writeByte(0);
             writeVarInt(buf, subChunkData.readableBytes());
             buf.writeBytes(subChunkData);
             subChunkData.release();
