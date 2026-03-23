@@ -345,29 +345,31 @@ public class BedrockLoginHandler {
         try {
             ByteBuf chunkData = Unpooled.buffer();
 
+            // 24 subchunks — Y=-64 a Y=320
             for (int i = 0; i < 24; i++) {
-                chunkData.writeByte(8);
-                chunkData.writeByte(2);
-                chunkData.writeByte(1);
-                writeVarInt(chunkData, 0);
-                chunkData.writeByte(1);
-                writeVarInt(chunkData, 0);
+                chunkData.writeByte(8);    // version
+                chunkData.writeByte(2);    // 2 layers
+                chunkData.writeByte(1);    // isRuntime flag layer 0
+                writeVarInt(chunkData, 0); // air
+                chunkData.writeByte(1);    // isRuntime flag layer 1
+                writeVarInt(chunkData, 0); // air
             }
 
+            // 25 secciones de bioma (plains)
             for (int i = 0; i < 25; i++) {
-                chunkData.writeByte(1);
-                writeVarInt(chunkData, 1);
+                chunkData.writeByte(1);    // isRuntime
+                writeVarInt(chunkData, 1); // plains
             }
-            writeVarInt(chunkData, 0);
+            writeVarInt(chunkData, 0); // border blocks
 
+            // LevelChunkPacket — SIN campo dimension extra
             ByteBuf buf = Unpooled.buffer();
             writeVarInt(buf, PACKET_LEVEL_CHUNK);
-            writeZigZagInt(buf, chunkX);
-            writeZigZagInt(buf, chunkZ);
-            writeVarInt(buf, 0);      // overworld
-            writeVarInt(buf, 24);     // subchunks
-            writeZigZagInt(buf, -4);  // minSubChunkIndex (-64 / 16 = -4)
-            buf.writeBoolean(false);
+            writeZigZagInt(buf, chunkX);    // chunkX
+            writeZigZagInt(buf, chunkZ);    // chunkZ
+            writeVarInt(buf, 24);           // subChunkCount
+            writeZigZagInt(buf, -4);        // highestSubChunk (-64/16 = -4)
+            buf.writeBoolean(false);        // cacheEnabled = false
             writeVarInt(buf, chunkData.readableBytes());
             buf.writeBytes(chunkData);
             chunkData.release();
