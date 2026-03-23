@@ -6,6 +6,7 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.socket.DatagramPacket;
 import me.crossrealmmc.CrossRealmMC;
 import me.crossrealmmc.detection.PlayerDetector;
+import me.crossrealmmc.realmgate.BedrockSession;
 import org.bukkit.Bukkit;
 
 import java.net.InetSocketAddress;
@@ -67,7 +68,7 @@ public class BedrockLoginHandler {
     public void handleLoginPacket(ChannelHandlerContext ctx, ByteBuf buf,
             InetSocketAddress sender, BedrockPlayer player) {
         try {
-            // ✅ CAMBIO 1: leer protocolo como unsigned para evitar valores negativos
+            // ✅ FIX 1: protocolo unsigned
             long protocol = Integer.toUnsignedLong(buf.readInt());
             player.setProtocol((int) protocol);
             plugin.log("&aLogin Bedrock | Protocolo: &e" + protocol
@@ -83,6 +84,15 @@ public class BedrockLoginHandler {
                 player.setState(BedrockPlayer.State.LOGIN);
                 plugin.log("&aJugador offline aceptado: &e" + prefixedName);
                 plugin.getPlayerDetector().registerPlayer(uuid, PlayerDetector.PlayerType.BEDROCK, "26.3");
+
+                // ✅ FIX 2: registrar sesion en RealmGate directamente
+                BedrockSession bedrockSession = new BedrockSession(sender, "26.3");
+                bedrockSession.setUsername(prefixedName);
+                bedrockSession.setUuid(uuid);
+                bedrockSession.setAuthenticated(true);
+                plugin.getRealmGate().registerAuthenticatedSession(
+                        sender.getAddress().getHostAddress(), bedrockSession);
+
                 sendPlayStatus(ctx, sender, STATUS_LOGIN_SUCCESS);
                 sendResourcePacksInfo(ctx, sender);
                 sendStartGame(ctx, sender, player);
@@ -111,6 +121,16 @@ public class BedrockLoginHandler {
             player.setState(BedrockPlayer.State.LOGIN);
             plugin.log("&aJugador autenticado: &e" + prefixedName);
             plugin.getPlayerDetector().registerPlayer(auth.uuid, PlayerDetector.PlayerType.BEDROCK, "26.3");
+
+            // ✅ FIX 2 también para online mode
+            BedrockSession bedrockSession = new BedrockSession(sender, "26.3");
+            bedrockSession.setUsername(prefixedName);
+            bedrockSession.setXuid(auth.xuid);
+            bedrockSession.setUuid(auth.uuid);
+            bedrockSession.setAuthenticated(true);
+            plugin.getRealmGate().registerAuthenticatedSession(
+                    sender.getAddress().getHostAddress(), bedrockSession);
+
             sendPlayStatus(ctx, sender, STATUS_LOGIN_SUCCESS);
             sendResourcePacksInfo(ctx, sender);
             sendStartGame(ctx, sender, player);
@@ -270,7 +290,7 @@ public class BedrockLoginHandler {
                 "26.3"
             );
 
-            // ✅ CAMBIO 2: conectar al servidor Java después del spawn
+            // ✅ FIX 3: conectar al servidor Java después del spawn
             String ip = sender.getAddress().getHostAddress();
             plugin.debugLog("Iniciando bridge Java para: " + player.getUsername());
             plugin.getRealmGate().connectToJavaAfterSpawn(ip, player);
