@@ -44,7 +44,7 @@ public class RakNetHandler extends SimpleChannelInboundHandler<DatagramPacket> {
     public RakNetHandler(CrossRealmMC plugin) {
         this.plugin = plugin;
         this.registry = new BedrockPlayerRegistry();
-        this.loginHandler = new BedrockLoginHandler(plugin, sendSequence, messageIndex, orderIndex);
+        this.loginHandler = new BedrockLoginHandler(plugin, sendSequence, messageIndex, orderIndex, sentPacketCache);
         this.translator = new PacketTranslator(plugin, sendSequence, messageIndex, orderIndex);
     }
 
@@ -329,24 +329,6 @@ public class RakNetHandler extends SimpleChannelInboundHandler<DatagramPacket> {
         ack.writeByte(1);
         ack.writeMediumLE(seqNum);
         ctx.writeAndFlush(new DatagramPacket(ack, sender));
-    }
-
-    private void sendFrameSet(ChannelHandlerContext ctx, InetSocketAddress sender, ByteBuf payload) {
-        int seqNum = sendSequence.getAndIncrement();
-        ByteBuf frame = Unpooled.buffer();
-        frame.writeByte(0x84);
-        frame.writeMediumLE(seqNum);
-        frame.writeByte(0x40);
-        frame.writeShort(payload.readableBytes() * 8);
-        frame.writeMediumLE(messageIndex.getAndIncrement());
-        frame.writeBytes(payload);
-        payload.release();
-
-        byte[] frameBytes = new byte[frame.readableBytes()];
-        frame.getBytes(0, frameBytes);
-        sentPacketCache.put(seqNum, frameBytes);
-
-        ctx.writeAndFlush(new DatagramPacket(frame, sender));
     }
 
     public void sendFrameSetOrdered(ChannelHandlerContext ctx, InetSocketAddress sender, ByteBuf payload) {
