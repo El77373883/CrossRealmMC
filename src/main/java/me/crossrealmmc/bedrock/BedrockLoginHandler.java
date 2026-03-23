@@ -235,7 +235,7 @@ public class BedrockLoginHandler {
         Bukkit.getScheduler().runTaskLaterAsynchronously(plugin, () -> {
             sendSetTime(ctx, sender);
             sendRespawn(ctx, sender, player);
-            sendChunkRadiusReply(ctx, sender, 1);
+            sendChunkRadiusReply(ctx, sender, 4);
             sendEmptyChunks(ctx, sender, player);
             sendNetworkChunkPublisherUpdate(ctx, sender, player);
             sendPlayStatus(ctx, sender, STATUS_PLAYER_SPAWN);
@@ -294,7 +294,7 @@ public class BedrockLoginHandler {
         writeZigZagInt(buf, (int) player.getX());
         writeVarInt(buf, (int) player.getY());
         writeZigZagInt(buf, (int) player.getZ());
-        writeVarInt(buf, 8);
+        writeVarInt(buf, 32);
         writeVarInt(buf, 0);
         sendGamePacket(ctx, sender, buf);
         plugin.log("&aNetworkChunkPublisherUpdate enviado");
@@ -309,7 +309,7 @@ public class BedrockLoginHandler {
     }
 
     private void sendEmptyChunks(ChannelHandlerContext ctx, InetSocketAddress sender, BedrockPlayer player) {
-        int radius = 1;
+        int radius = 4;
         int chunkX = (int) player.getX() >> 4;
         int chunkZ = (int) player.getZ() >> 4;
         int count = 0;
