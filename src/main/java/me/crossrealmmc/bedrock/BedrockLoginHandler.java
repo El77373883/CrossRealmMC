@@ -259,6 +259,13 @@ public class BedrockLoginHandler {
                 Bukkit.broadcastMessage(joinMsg);
             });
         }, 2L);
+
+        // Timer periódico cada 5 segundos
+        Bukkit.getScheduler().runTaskTimerAsynchronously(plugin, () -> {
+            if (player.getState() == BedrockPlayer.State.PLAYING) {
+                sendNetworkChunkPublisherUpdate(ctx, sender, player);
+            }
+        }, 20L, 100L);
     }
 
     private void sendBiomeDefinitionList(ChannelHandlerContext ctx, InetSocketAddress sender) {
@@ -301,7 +308,6 @@ public class BedrockLoginHandler {
         writeVarInt(buf, 32);
         writeVarInt(buf, 0);
         sendGamePacket(ctx, sender, buf);
-        plugin.log("&aNetworkChunkPublisherUpdate enviado");
     }
 
     private void sendChunkRadiusReply(ChannelHandlerContext ctx, InetSocketAddress sender, int radius) {
@@ -401,7 +407,6 @@ public class BedrockLoginHandler {
             frame.writeBytes(gamePacket);
             gamePacket.release();
 
-            // Cachear para retransmision por NACK
             byte[] frameBytes = new byte[frame.readableBytes()];
             frame.getBytes(0, frameBytes);
             sentPacketCache.put(seqNum, frameBytes);
