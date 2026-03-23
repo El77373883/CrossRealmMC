@@ -237,6 +237,7 @@ public class BedrockLoginHandler {
             sendRespawn(ctx, sender, player);
             sendChunkRadiusReply(ctx, sender, 1);
             sendEmptyChunks(ctx, sender, player);
+            sendNetworkChunkPublisherUpdate(ctx, sender, player);
             sendPlayStatus(ctx, sender, STATUS_PLAYER_SPAWN);
             player.setState(BedrockPlayer.State.PLAYING);
             plugin.log("&a✔ Jugador spawneado: &e" + player.getUsername());
@@ -286,6 +287,19 @@ public class BedrockLoginHandler {
         plugin.log("&aCreativeContent enviado");
     }
 
+    private void sendNetworkChunkPublisherUpdate(ChannelHandlerContext ctx,
+            InetSocketAddress sender, BedrockPlayer player) {
+        ByteBuf buf = Unpooled.buffer();
+        writeVarInt(buf, 0x79);
+        writeZigZagInt(buf, (int) player.getX());
+        writeVarInt(buf, (int) player.getY());
+        writeZigZagInt(buf, (int) player.getZ());
+        writeVarInt(buf, 8);
+        writeVarInt(buf, 0);
+        sendGamePacket(ctx, sender, buf);
+        plugin.log("&aNetworkChunkPublisherUpdate enviado");
+    }
+
     private void sendChunkRadiusReply(ChannelHandlerContext ctx, InetSocketAddress sender, int radius) {
         ByteBuf buf = Unpooled.buffer();
         writeVarInt(buf, PACKET_CHUNK_RADIUS_REPLY);
@@ -313,20 +327,19 @@ public class BedrockLoginHandler {
             ByteBuf chunkData = Unpooled.buffer();
 
             for (int i = 0; i < 24; i++) {
-                chunkData.writeByte(8);    // subchunk version
-                chunkData.writeByte(2);    // 2 layers
-                chunkData.writeByte(1);    // (0 bits per block << 1) | 1 isRuntime
-                writeVarInt(chunkData, 0); // air runtime ID = 0
-                chunkData.writeByte(1);    // layer 1 isRuntime
+                chunkData.writeByte(8);
+                chunkData.writeByte(2);
+                chunkData.writeByte(1);
+                writeVarInt(chunkData, 0);
+                chunkData.writeByte(1);
                 writeVarInt(chunkData, 0);
             }
 
-            // 25 biomas con isRuntime flag
             for (int i = 0; i < 25; i++) {
-                chunkData.writeByte(1);    // isRuntime flag
-                writeVarInt(chunkData, 1); // plains biome ID = 1
+                chunkData.writeByte(1);
+                writeVarInt(chunkData, 1);
             }
-            writeVarInt(chunkData, 0); // border blocks
+            writeVarInt(chunkData, 0);
 
             ByteBuf buf = Unpooled.buffer();
             writeVarInt(buf, PACKET_LEVEL_CHUNK);
