@@ -315,20 +315,18 @@ public class BedrockLoginHandler {
             for (int i = 0; i < 24; i++) {
                 chunkData.writeByte(8);    // subchunk version
                 chunkData.writeByte(2);    // 2 layers
-                // Layer 0 - bloques
                 chunkData.writeByte(1);    // (0 bits per block << 1) | 1 isRuntime
                 writeVarInt(chunkData, 0); // air runtime ID = 0
-                // Layer 1 - waterlogged
-                chunkData.writeByte(1);    // isRuntime flag
+                chunkData.writeByte(1);    // layer 1 isRuntime
                 writeVarInt(chunkData, 0);
             }
 
-            // 25 biomas
+            // 25 biomas con isRuntime flag
             for (int i = 0; i < 25; i++) {
-                chunkData.writeByte(0x00);
-                writeVarInt(chunkData, 1);
+                chunkData.writeByte(1);    // isRuntime flag
+                writeVarInt(chunkData, 1); // plains biome ID = 1
             }
-            writeVarInt(chunkData, 0);
+            writeVarInt(chunkData, 0); // border blocks
 
             ByteBuf buf = Unpooled.buffer();
             writeVarInt(buf, PACKET_LEVEL_CHUNK);
