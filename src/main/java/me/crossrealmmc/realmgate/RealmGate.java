@@ -180,14 +180,13 @@ public class RealmGate {
         plugin.debugLog("LoginAcknowledged enviado");
     }
 
-    // ✅ FIX: brand sin writeVarInt de longitud, bytes directos
     private void sendBrandPacket(DataOutputStream out, int compressionThreshold) throws IOException {
         byte[] brand = "CrossRealmMC".getBytes(StandardCharsets.UTF_8);
         ByteArrayOutputStream content = new ByteArrayOutputStream();
         DataOutputStream contentData = new DataOutputStream(content);
         writeVarInt(contentData, 0x02);
         writeJavaString(contentData, "minecraft:brand");
-        contentData.write(brand); // ✅ sin writeVarInt de longitud
+        contentData.write(brand);
         sendCompressed(out, content.toByteArray(), compressionThreshold);
         plugin.debugLog("Brand packet enviado");
     }
@@ -282,8 +281,9 @@ public class RealmGate {
                     plugin.debugLog("LoginSuccess: " + name);
                     sendLoginAcknowledged(out);
                     inConfigState = true;
-                    sendBrandPacket(out, compressionThreshold);
+                    // ✅ FIX: ClientSettings primero, luego Brand (igual que Geyser)
                     sendClientSettings(out, compressionThreshold);
+                    sendBrandPacket(out, compressionThreshold);
                 } else if (id == 0x00) {
                     plugin.debugLog("Disconnect login: " + readJavaString(pkt));
                     return false;
