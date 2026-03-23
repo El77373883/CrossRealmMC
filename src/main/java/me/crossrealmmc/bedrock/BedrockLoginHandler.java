@@ -264,6 +264,7 @@ public class BedrockLoginHandler {
         Bukkit.getScheduler().runTaskTimerAsynchronously(plugin, () -> {
             if (player.getState() == BedrockPlayer.State.PLAYING) {
                 sendNetworkChunkPublisherUpdate(ctx, sender, player);
+                sendTickSync(ctx, sender);
             }
         }, 20L, 100L);
     }
@@ -296,6 +297,14 @@ public class BedrockLoginHandler {
         writeVarInt(buf, 0);
         sendGamePacket(ctx, sender, buf);
         plugin.log("&aCreativeContent enviado");
+    }
+
+    private void sendTickSync(ChannelHandlerContext ctx, InetSocketAddress sender) {
+        ByteBuf buf = Unpooled.buffer();
+        writeVarInt(buf, 0x17);
+        buf.writeLongLE(System.currentTimeMillis());
+        buf.writeLongLE(System.currentTimeMillis());
+        sendGamePacket(ctx, sender, buf);
     }
 
     private void sendNetworkChunkPublisherUpdate(ChannelHandlerContext ctx,
