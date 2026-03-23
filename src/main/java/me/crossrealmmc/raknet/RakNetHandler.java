@@ -398,7 +398,9 @@ public class RakNetHandler extends SimpleChannelInboundHandler<DatagramPacket> {
         plugin.log("&aConnectionRequestAccepted enviado en FrameSet");
     }
 
+    // ✅ FIX: cerrar sesion Java al desconectarse de Bedrock
     private void handleDisconnect(InetSocketAddress sender) {
+        String ip = sender.getAddress().getHostAddress();
         BedrockPlayer player = registry.get(sender);
         if (player != null) {
             if (player.getUuid() != null)
@@ -410,10 +412,11 @@ public class RakNetHandler extends SimpleChannelInboundHandler<DatagramPacket> {
             );
             registry.remove(sender);
         }
+        plugin.getRealmGate().removeSession(ip);
         sentPacketCache.clear();
         fragmentBuffers.clear();
         fragmentCounts.clear();
-        plugin.log("&cDesconexion: &f" + sender.getAddress().getHostAddress());
+        plugin.log("&cDesconexion: &f" + ip);
     }
 
     @Override
