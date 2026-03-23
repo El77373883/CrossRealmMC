@@ -86,7 +86,7 @@ public class RealmGate {
         return true;
     }
 
-    // ✅ NUEVO: registrar sesion directamente sin pasar por cooldown/pending
+    // Registrar sesion directamente sin pasar por cooldown/pending
     public void registerAuthenticatedSession(String ip, BedrockSession session) {
         authenticatedSessions.put(ip, session);
         plugin.debugLog("Sesion directa registrada: " + ip + " | " + session.getUsername());
@@ -154,12 +154,12 @@ public class RealmGate {
         plugin.debugLog("Handshake Java enviado");
     }
 
+    // ✅ FIX: eliminado writeBoolean(true) que causaba 1 byte extra
     private void sendJavaLoginStart(DataOutputStream out, String username, UUID uuid) throws IOException {
         ByteArrayOutputStream buf  = new ByteArrayOutputStream();
         DataOutputStream      data = new DataOutputStream(buf);
         writeVarInt(data, 0x00);
         writeJavaString(data, username);
-        data.writeBoolean(true);
         data.writeLong(uuid.getMostSignificantBits());
         data.writeLong(uuid.getLeastSignificantBits());
         sendJavaPacket(out, buf.toByteArray());
