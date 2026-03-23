@@ -10,6 +10,7 @@ import org.bukkit.Bukkit;
 
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -19,6 +20,7 @@ public class BedrockLoginHandler {
     private final AtomicInteger sendSequence;
     private final AtomicInteger messageIndex;
     private final AtomicInteger orderIndex;
+    private final Map<Integer, byte[]> sentPacketCache;
 
     public static final int PACKET_LOGIN               = 0x01;
     public static final int PACKET_PLAY_STATUS         = 0x02;
@@ -36,11 +38,13 @@ public class BedrockLoginHandler {
     public static final int STATUS_PLAYER_SPAWN  = 3;
 
     public BedrockLoginHandler(CrossRealmMC plugin, AtomicInteger sendSequence,
-            AtomicInteger messageIndex, AtomicInteger orderIndex) {
+            AtomicInteger messageIndex, AtomicInteger orderIndex,
+            Map<Integer, byte[]> sentPacketCache) {
         this.plugin = plugin;
         this.sendSequence = sendSequence;
         this.messageIndex = messageIndex;
         this.orderIndex = orderIndex;
+        this.sentPacketCache = sentPacketCache;
     }
 
     public void handleLoginPacket(ChannelHandlerContext ctx, ByteBuf buf,
@@ -385,9 +389,10 @@ public class BedrockLoginHandler {
             gamePacket.writeBytes(payload);
             payload.release();
 
+            int seqNum = sendSequence.getAndIncrement();
             ByteBuf frame = Unpooled.buffer();
             frame.writeByte(0x84);
-            frame.writeMediumLE(sendSequence.getAndIncrement());
+            frame.writeMediumLE(seqNum);
             frame.writeByte(0x60);
             frame.writeShort(gamePacket.readableBytes() * 8);
             frame.writeMediumLE(messageIndex.getAndIncrement());
@@ -395,6 +400,11 @@ public class BedrockLoginHandler {
             frame.writeByte(0);
             frame.writeBytes(gamePacket);
             gamePacket.release();
+
+            // Cachear para retransmision por NACK
+            byte[] frameBytes = new byte[frame.readableBytes()];
+            frame.getBytes(0, frameBytes);
+            sentPacketCache.put(seqNum, frameBytes);
 
             ctx.writeAndFlush(new DatagramPacket(frame, sender));
         } catch (Exception e) {
@@ -410,9 +420,10 @@ public class BedrockLoginHandler {
             gamePacket.writeBytes(payload);
             payload.release();
 
+            int seqNum = sendSequence.getAndIncrement();
             ByteBuf frame = Unpooled.buffer();
             frame.writeByte(0x84);
-            frame.writeMediumLE(sendSequence.getAndIncrement());
+            frame.writeMediumLE(seqNum);
             frame.writeByte(0x60);
             frame.writeShort(gamePacket.readableBytes() * 8);
             frame.writeMediumLE(messageIndex.getAndIncrement());
@@ -420,6 +431,10 @@ public class BedrockLoginHandler {
             frame.writeByte(0);
             frame.writeBytes(gamePacket);
             gamePacket.release();
+
+            byte[] frameBytes = new byte[frame.readableBytes()];
+            frame.getBytes(0, frameBytes);
+            sentPacketCache.put(seqNum, frameBytes);
 
             ctx.writeAndFlush(new DatagramPacket(frame, sender));
         } catch (Exception e) {
