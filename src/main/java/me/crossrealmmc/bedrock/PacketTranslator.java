@@ -24,6 +24,7 @@ public class PacketTranslator {
     public static final int PACKET_CHAT                 = 0x09;
     public static final int PACKET_DISCONNECT           = 0x05;
     public static final int PACKET_REQUEST_CHUNK_RADIUS = 0x45;
+    public static final int PACKET_SUB_CHUNK_REQUEST    = 0x5C;
 
     public PacketTranslator(CrossRealmMC plugin, AtomicInteger sendSequence,
             AtomicInteger messageIndex, AtomicInteger orderIndex) {
@@ -69,6 +70,9 @@ public class PacketTranslator {
             case PACKET_PLAYER_ACTION:
                 handlePlayerAction(buf, player);
                 break;
+            case PACKET_SUB_CHUNK_REQUEST:
+                handleSubChunkRequest(ctx, buf, sender, player, loginHandler);
+                break;
             case 0xC1:
                 handleRequestNetworkSettings(ctx, buf, sender, player, loginHandler);
                 break;
@@ -81,6 +85,33 @@ public class PacketTranslator {
             default:
                 plugin.debugLog("Paquete no manejado: 0x" + String.format("%02X", packetId));
                 break;
+        }
+    }
+
+    private void handleSubChunkRequest(io.netty.channel.ChannelHandlerContext ctx,
+            ByteBuf buf, InetSocketAddress sender,
+            BedrockPlayer player, BedrockLoginHandler loginHandler) {
+        try {
+            int dimension = readVarInt(buf);
+            int baseX = buf.readIntLE();
+            int baseY = buf.readIntLE();
+            int baseZ = buf.readIntLE();
+            int count = buf.readIntLE();
+
+            plugin.debugLog("SubChunkRequest | dim=" + dimension
+                    + " base=(" + baseX + "," + baseY + "," + baseZ + ") count=" + count);
+
+            for (int i = 0; i < count && buf.isReadable(3); i++) {
+                byte dx = buf.readByte();
+                byte dy = buf.readByte();
+                byte dz = buf.readByte();
+                int cx = baseX + dx;
+                int cy = baseY + dy;
+                int cz = baseZ + dz;
+                loginHandler.sendSubChunkResponse(ctx, sender, dimension, cx, cy, cz);
+            }
+        } catch (Exception e) {
+            plugin.debugLog("Error SubChunkRequest: " + e.getMessage());
         }
     }
 
@@ -151,7 +182,7 @@ public class PacketTranslator {
 
         ByteBuf reply = Unpooled.buffer();
         BedrockLoginHandler.writeVarInt(reply, 0x46);
-        BedrockLoginHandler.writeVarInt(reply, 1);
+        BedrockLoginHandler.writeVarInt(reply, 4);
         loginHandler.sendGamePacketPublic(ctx, sender, reply);
         plugin.debugLog("ChunkRadiusReply respondido");
 
