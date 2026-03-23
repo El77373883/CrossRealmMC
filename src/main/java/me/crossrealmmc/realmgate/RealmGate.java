@@ -180,12 +180,11 @@ public class RealmGate {
         plugin.debugLog("LoginAcknowledged enviado");
     }
 
-    // Envia brand packet en estado Configuration (sin compresion aun en config state)
     private void sendBrandPacket(DataOutputStream out, int compressionThreshold) throws IOException {
         byte[] brand = "CrossRealmMC".getBytes(StandardCharsets.UTF_8);
         ByteArrayOutputStream content = new ByteArrayOutputStream();
         DataOutputStream contentData = new DataOutputStream(content);
-        writeVarInt(contentData, 0x00); // ServerboundCustomPayload en config state
+        writeVarInt(contentData, 0x00);
         writeJavaString(contentData, "minecraft:brand");
         writeVarInt(contentData, brand.length);
         contentData.write(brand);
@@ -193,11 +192,11 @@ public class RealmGate {
         plugin.debugLog("Brand packet enviado");
     }
 
-    // Envia ClientSettings en estado Configuration
+    // ✅ FIX: campo particle status agregado para 1.21.4
     private void sendClientSettings(DataOutputStream out, int compressionThreshold) throws IOException {
         ByteArrayOutputStream content = new ByteArrayOutputStream();
         DataOutputStream contentData = new DataOutputStream(content);
-        writeVarInt(contentData, 0x00); // ServerboundClientInformation en config state
+        writeVarInt(contentData, 0x00); // ServerboundClientInformation
         writeJavaString(contentData, "en_US"); // locale
         contentData.writeByte(10);             // view distance
         writeVarInt(contentData, 0);           // chat mode: enabled
@@ -206,26 +205,24 @@ public class RealmGate {
         writeVarInt(contentData, 1);           // main hand: right
         contentData.writeBoolean(false);       // text filtering
         contentData.writeBoolean(true);        // allow listing
-        writeVarInt(contentData, 0);           // particle status: all
+        writeVarInt(contentData, 0);           // ✅ particle status: all (nuevo en 1.21.4)
         sendCompressed(out, content.toByteArray(), compressionThreshold);
         plugin.debugLog("ClientSettings enviado");
     }
 
-    // Envia AcknowledgeFinishConfiguration
     private void sendAcknowledgeFinishConfiguration(DataOutputStream out, int compressionThreshold) throws IOException {
         ByteArrayOutputStream content = new ByteArrayOutputStream();
         DataOutputStream contentData = new DataOutputStream(content);
-        writeVarInt(contentData, 0x03); // ServerboundAcknowledgeFinishConfiguration
+        writeVarInt(contentData, 0x03);
         sendCompressed(out, content.toByteArray(), compressionThreshold);
         plugin.debugLog("AcknowledgeFinishConfiguration enviado");
     }
 
-    // Envia un paquete con wrapper de compresion correcto
     private void sendCompressed(DataOutputStream out, byte[] packetData, int threshold) throws IOException {
         if (threshold >= 0) {
             ByteArrayOutputStream wrapper = new ByteArrayOutputStream();
             DataOutputStream wrapperData = new DataOutputStream(wrapper);
-            writeVarInt(wrapperData, 0); // dataLength = 0 = sin comprimir
+            writeVarInt(wrapperData, 0);
             wrapperData.write(packetData);
             writeVarInt(out, wrapper.size());
             out.write(wrapper.toByteArray());
@@ -277,7 +274,6 @@ public class RealmGate {
                     + (inConfigState ? " [CONFIG]" : " [LOGIN]"));
 
             if (!inConfigState) {
-                // Estado LOGIN
                 if (id == 0x02) { // LoginSuccess
                     long msb  = pkt.readLong();
                     long lsb  = pkt.readLong();
@@ -287,39 +283,37 @@ public class RealmGate {
                     plugin.debugLog("LoginSuccess: " + name);
                     sendLoginAcknowledged(out);
                     inConfigState = true;
-                    // Mandar brand y settings al entrar en config state
                     sendBrandPacket(out, compressionThreshold);
                     sendClientSettings(out, compressionThreshold);
-                } else if (id == 0x00) { // Disconnect
+                } else if (id == 0x00) {
                     plugin.debugLog("Disconnect login: " + readJavaString(pkt));
                     return false;
-                } else if (id == 0x03) { // SetCompression
+                } else if (id == 0x03) {
                     compressionThreshold = readVarInt(pkt);
                     plugin.debugLog("SetCompression threshold: " + compressionThreshold);
                 }
             } else {
-                // Estado CONFIGURATION
                 if (id == 0x02) { // FinishConfiguration
                     plugin.debugLog("FinishConfiguration recibido");
                     sendAcknowledgeFinishConfiguration(out, compressionThreshold);
                     plugin.debugLog("✔ Entrando al estado Play");
                     return true;
-                } else if (id == 0x00) { // Disconnect en config
+                } else if (id == 0x00) {
                     plugin.debugLog("Disconnect config: " + readJavaString(pkt));
                     return false;
-                } else if (id == 0x01) { // Ping en config — responder
+                } else if (id == 0x01) {
                     long pingId = pkt.readLong();
                     ByteArrayOutputStream pongContent = new ByteArrayOutputStream();
                     DataOutputStream pongData = new DataOutputStream(pongContent);
-                    writeVarInt(pongData, 0x02); // Pong
+                    writeVarInt(pongData, 0x02);
                     pongData.writeLong(pingId);
                     sendCompressed(out, pongContent.toByteArray(), compressionThreshold);
                     plugin.debugLog("Pong config enviado");
-                } else if (id == 0x0D) { // SelectKnownPacks — responder con lista vacia
+                } else if (id == 0x0D) {
                     ByteArrayOutputStream packsContent = new ByteArrayOutputStream();
                     DataOutputStream packsData = new DataOutputStream(packsContent);
-                    writeVarInt(packsData, 0x07); // ServerboundKnownPacks
-                    writeVarInt(packsData, 0);    // 0 packs conocidos
+                    writeVarInt(packsData, 0x07);
+                    writeVarInt(packsData, 0);
                     sendCompressed(out, packsContent.toByteArray(), compressionThreshold);
                     plugin.debugLog("KnownPacks enviado");
                 } else {
