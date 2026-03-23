@@ -180,11 +180,12 @@ public class RealmGate {
         plugin.debugLog("LoginAcknowledged enviado");
     }
 
+    // ✅ FIX: brand usa 0x02 en config state, no 0x00
     private void sendBrandPacket(DataOutputStream out, int compressionThreshold) throws IOException {
         byte[] brand = "CrossRealmMC".getBytes(StandardCharsets.UTF_8);
         ByteArrayOutputStream content = new ByteArrayOutputStream();
         DataOutputStream contentData = new DataOutputStream(content);
-        writeVarInt(contentData, 0x00);
+        writeVarInt(contentData, 0x02); // ✅ PluginMessage en config state = 0x02
         writeJavaString(contentData, "minecraft:brand");
         writeVarInt(contentData, brand.length);
         contentData.write(brand);
@@ -192,20 +193,19 @@ public class RealmGate {
         plugin.debugLog("Brand packet enviado");
     }
 
-    // ✅ FIX: campo particle status agregado para 1.21.4
     private void sendClientSettings(DataOutputStream out, int compressionThreshold) throws IOException {
         ByteArrayOutputStream content = new ByteArrayOutputStream();
         DataOutputStream contentData = new DataOutputStream(content);
-        writeVarInt(contentData, 0x00); // ServerboundClientInformation
-        writeJavaString(contentData, "en_US"); // locale
-        contentData.writeByte(10);             // view distance
-        writeVarInt(contentData, 0);           // chat mode: enabled
-        contentData.writeBoolean(true);        // chat colors
-        contentData.writeByte(0x7F);           // skin parts: all visible
-        writeVarInt(contentData, 1);           // main hand: right
-        contentData.writeBoolean(false);       // text filtering
-        contentData.writeBoolean(true);        // allow listing
-        writeVarInt(contentData, 0);           // ✅ particle status: all (nuevo en 1.21.4)
+        writeVarInt(contentData, 0x00); // ClientInformation = 0x00
+        writeJavaString(contentData, "en_US");
+        contentData.writeByte(10);
+        writeVarInt(contentData, 0);
+        contentData.writeBoolean(true);
+        contentData.writeByte(0x7F);
+        writeVarInt(contentData, 1);
+        contentData.writeBoolean(false);
+        contentData.writeBoolean(true);
+        writeVarInt(contentData, 0); // particle status
         sendCompressed(out, content.toByteArray(), compressionThreshold);
         plugin.debugLog("ClientSettings enviado");
     }
