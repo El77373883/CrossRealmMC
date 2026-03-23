@@ -86,7 +86,6 @@ public class RealmGate {
         return true;
     }
 
-    // Registrar sesion directamente sin pasar por cooldown/pending
     public void registerAuthenticatedSession(String ip, BedrockSession session) {
         authenticatedSessions.put(ip, session);
         plugin.debugLog("Sesion directa registrada: " + ip + " | " + session.getUsername());
@@ -146,7 +145,7 @@ public class RealmGate {
         ByteArrayOutputStream buf  = new ByteArrayOutputStream();
         DataOutputStream      data = new DataOutputStream(buf);
         writeVarInt(data, 0x00);
-        writeVarInt(data, 769); // 1.21.4 — cambia si tu server usa otra version
+        writeVarInt(data, 769);
         writeJavaString(data, host);
         data.writeShort(port);
         writeVarInt(data, 2);
@@ -154,7 +153,6 @@ public class RealmGate {
         plugin.debugLog("Handshake Java enviado");
     }
 
-    // ✅ FIX: eliminado writeBoolean(true) que causaba 1 byte extra
     private void sendJavaLoginStart(DataOutputStream out, String username, UUID uuid) throws IOException {
         ByteArrayOutputStream buf  = new ByteArrayOutputStream();
         DataOutputStream      data = new DataOutputStream(buf);
@@ -166,17 +164,41 @@ public class RealmGate {
         plugin.debugLog("LoginStart enviado: " + username);
     }
 
+    // ✅ FIX: manejo correcto de SetCompression
     private boolean waitForLoginSuccess(DataInputStream in, BedrockSession session) throws IOException {
         long timeout = System.currentTimeMillis() + 8000;
+        int compressionThreshold = -1;
+
         while (System.currentTimeMillis() < timeout) {
             if (in.available() == 0) {
                 try { Thread.sleep(50); } catch (InterruptedException ignored) {}
                 continue;
             }
-            int len = readVarInt(in);
-            if (len <= 0) continue;
-            byte[] data = new byte[len];
-            in.readFully(data);
+
+            byte[] data;
+
+            if (compressionThreshold >= 0) {
+                int compressedLen = readVarInt(in);
+                byte[] compressedData = new byte[compressedLen];
+                in.readFully(compressedData);
+                DataInputStream tmp = new DataInputStream(new ByteArrayInputStream(compressedData));
+                int dataLength = readVarInt(tmp);
+                if (dataLength == 0) {
+                    int remaining = compressedLen - varIntSize(0);
+                    data = new byte[remaining];
+                    tmp.readFully(data);
+                } else {
+                    byte[] compressed = new byte[compressedLen - varIntSize(dataLength)];
+                    tmp.readFully(compressed);
+                    data = decompress(compressed, dataLength);
+                }
+            } else {
+                int len = readVarInt(in);
+                if (len <= 0) continue;
+                data = new byte[len];
+                in.readFully(data);
+            }
+
             DataInputStream pkt = new DataInputStream(new ByteArrayInputStream(data));
             int id = readVarInt(pkt);
             plugin.debugLog("Respuesta Java: 0x" + String.format("%02X", id));
@@ -193,11 +215,31 @@ public class RealmGate {
                 plugin.debugLog("Disconnect del servidor Java: " + readJavaString(pkt));
                 return false;
             } else if (id == 0x03) {
-                plugin.debugLog("SetCompression recibido, ignorando");
+                compressionThreshold = readVarInt(pkt);
+                plugin.debugLog("SetCompression threshold: " + compressionThreshold);
             }
         }
         plugin.debugLog("Timeout esperando LoginSuccess");
         return false;
+    }
+
+    private byte[] decompress(byte[] data, int expectedSize) throws IOException {
+        try {
+            java.util.zip.Inflater inflater = new java.util.zip.Inflater();
+            inflater.setInput(data);
+            byte[] result = new byte[expectedSize];
+            inflater.inflate(result);
+            inflater.end();
+            return result;
+        } catch (Exception e) {
+            throw new IOException("Error descomprimiendo: " + e.getMessage());
+        }
+    }
+
+    private int varIntSize(int value) {
+        int size = 0;
+        do { size++; value >>>= 7; } while (value != 0);
+        return size;
     }
 
     private void sendJavaPacket(DataOutputStream out, byte[] data) throws IOException {
