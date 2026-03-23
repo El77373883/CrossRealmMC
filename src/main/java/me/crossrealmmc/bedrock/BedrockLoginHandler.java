@@ -171,7 +171,7 @@ public class BedrockLoginHandler {
             player.getState() == BedrockPlayer.State.SPAWNING) return;
 
         player.setState(BedrockPlayer.State.SPAWNING);
-        player.setPosition(0, 4, 0);
+        player.setPosition(0, 16, 0); // spawn encima del piso de piedra
         plugin.log("&aEnviando StartGame a: &e" + player.getUsername());
 
         ByteBuf buf = Unpooled.buffer();
@@ -180,7 +180,7 @@ public class BedrockLoginHandler {
         writeVarLong(buf, player.getEntityId());
         writeVarInt(buf, 0);
         buf.writeFloatLE(0);
-        buf.writeFloatLE(4);
+        buf.writeFloatLE(16); // spawn Y=16
         buf.writeFloatLE(0);
         buf.writeFloatLE(0);
         buf.writeFloatLE(0);
@@ -371,59 +371,16 @@ public class BedrockLoginHandler {
             ByteBuf chunkData = Unpooled.buffer();
 
             for (int i = 0; i < 24; i++) {
-                if (withFloor && i == 0) {
-                    // Subchunk 0 cubre Y=-64 a Y=-49
-                    // Y=3 está en subchunk 0 (offset desde -64): índice local = 3 - (-64) = 67... 
-                    // Spawn Y=4, piso en Y=3 → subchunk index = (3 + 64) / 16 = 4
-                    // En realidad spawn=4 → subchunk 4
+                if (withFloor && i == 4) {
+                    // Subchunk 4 = Y=0 a Y=15 — todo piedra (singleton)
                     chunkData.writeByte(8);    // version
                     chunkData.writeByte(2);    // 2 layers
-                    chunkData.writeByte(1);    // isRuntime layer 0 — aire
-                    writeVarInt(chunkData, 0); // air
-                    chunkData.writeByte(1);    // isRuntime layer 1
-                    writeVarInt(chunkData, 0);
-                } else if (withFloor && i == 4) {
-                    // Subchunk 4 = Y de -64+(4*16) = Y=0 a Y=15
-                    // Y=3 está aquí — poner un piso de piedra
-                    chunkData.writeByte(8);    // version
-                    chunkData.writeByte(2);    // 2 layers
-
-                    // Layer 0: palette con aire y piedra
-                    // Usar bits per block = 1 (V1) para 2 entradas
-                    chunkData.writeByte((1 << 1) | 1); // bitsPerBlock=1, isRuntime=1
-
-                    // 4096 bloques en V1 = 128 ints de 32 bits
-                    // Y=3 local = Y=3 (0-15 range dentro del subchunk)
-                    // XZY order: índice = (x*16 + z)*16 + y
-                    int[] blocks = new int[4096];
-                    // Llenar Y=3 con ID de paleta 1 (piedra)
-                    for (int bx = 0; bx < 16; bx++) {
-                        for (int bz = 0; bz < 16; bz++) {
-                            int idx = (bx << 8) | (bz << 4) | 3; // y=3
-                            blocks[idx] = 1; // piedra
-                        }
-                    }
-                    // Escribir como V1 (1 bit por bloque, 32 bloques por int)
-                    for (int w = 0; w < 128; w++) {
-                        int word = 0;
-                        for (int bit = 0; bit < 32; bit++) {
-                            int blockIdx = w * 32 + bit;
-                            if (blockIdx < 4096 && blocks[blockIdx] == 1) {
-                                word |= (1 << bit);
-                            }
-                        }
-                        buf_writeIntLE(chunkData, word);
-                    }
-
-                    // Palette: [aire, piedra]
-                    writeVarInt(chunkData, 2); // palette size
-                    writeVarInt(chunkData, 0); // aire runtime ID
-                    writeVarInt(chunkData, STONE_RUNTIME_ID); // piedra runtime ID
-
-                    // Layer 1: todo aire
-                    chunkData.writeByte(1);    // isRuntime
+                    chunkData.writeByte(0x01); // singleton isRuntime layer 0
+                    writeVarInt(chunkData, STONE_RUNTIME_ID); // toda piedra
+                    chunkData.writeByte(0x01); // singleton isRuntime layer 1
                     writeVarInt(chunkData, 0); // aire
                 } else {
+                    // Subchunk de aire
                     chunkData.writeByte(8);
                     chunkData.writeByte(2);
                     chunkData.writeByte(1);
@@ -450,13 +407,6 @@ public class BedrockLoginHandler {
         } catch (Exception e) {
             plugin.debugLog("Error enviando chunk: " + e.getMessage());
         }
-    }
-
-    private void buf_writeIntLE(ByteBuf buf, int value) {
-        buf.writeByte(value & 0xFF);
-        buf.writeByte((value >> 8) & 0xFF);
-        buf.writeByte((value >> 16) & 0xFF);
-        buf.writeByte((value >> 24) & 0xFF);
     }
 
     public void sendSubChunkResponse(ChannelHandlerContext ctx, InetSocketAddress sender,
@@ -499,7 +449,7 @@ public class BedrockLoginHandler {
         ByteBuf buf = Unpooled.buffer();
         writeVarInt(buf, PACKET_RESPAWN);
         buf.writeFloatLE(0);
-        buf.writeFloatLE(4);
+        buf.writeFloatLE(16); // Y=16
         buf.writeFloatLE(0);
         buf.writeByte(0);
         writeVarLong(buf, player.getEntityId());
