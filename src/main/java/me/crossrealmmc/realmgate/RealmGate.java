@@ -180,15 +180,14 @@ public class RealmGate {
         plugin.debugLog("LoginAcknowledged enviado");
     }
 
-    // ✅ FIX: brand usa 0x02 en config state, no 0x00
+    // ✅ FIX: brand sin writeVarInt de longitud, bytes directos
     private void sendBrandPacket(DataOutputStream out, int compressionThreshold) throws IOException {
         byte[] brand = "CrossRealmMC".getBytes(StandardCharsets.UTF_8);
         ByteArrayOutputStream content = new ByteArrayOutputStream();
         DataOutputStream contentData = new DataOutputStream(content);
-        writeVarInt(contentData, 0x02); // ✅ PluginMessage en config state = 0x02
+        writeVarInt(contentData, 0x02);
         writeJavaString(contentData, "minecraft:brand");
-        writeVarInt(contentData, brand.length);
-        contentData.write(brand);
+        contentData.write(brand); // ✅ sin writeVarInt de longitud
         sendCompressed(out, content.toByteArray(), compressionThreshold);
         plugin.debugLog("Brand packet enviado");
     }
@@ -196,7 +195,7 @@ public class RealmGate {
     private void sendClientSettings(DataOutputStream out, int compressionThreshold) throws IOException {
         ByteArrayOutputStream content = new ByteArrayOutputStream();
         DataOutputStream contentData = new DataOutputStream(content);
-        writeVarInt(contentData, 0x00); // ClientInformation = 0x00
+        writeVarInt(contentData, 0x00);
         writeJavaString(contentData, "en_US");
         contentData.writeByte(10);
         writeVarInt(contentData, 0);
@@ -205,7 +204,7 @@ public class RealmGate {
         writeVarInt(contentData, 1);
         contentData.writeBoolean(false);
         contentData.writeBoolean(true);
-        writeVarInt(contentData, 0); // particle status
+        writeVarInt(contentData, 0);
         sendCompressed(out, content.toByteArray(), compressionThreshold);
         plugin.debugLog("ClientSettings enviado");
     }
@@ -274,7 +273,7 @@ public class RealmGate {
                     + (inConfigState ? " [CONFIG]" : " [LOGIN]"));
 
             if (!inConfigState) {
-                if (id == 0x02) { // LoginSuccess
+                if (id == 0x02) {
                     long msb  = pkt.readLong();
                     long lsb  = pkt.readLong();
                     String name = readJavaString(pkt);
@@ -293,7 +292,7 @@ public class RealmGate {
                     plugin.debugLog("SetCompression threshold: " + compressionThreshold);
                 }
             } else {
-                if (id == 0x02) { // FinishConfiguration
+                if (id == 0x02) {
                     plugin.debugLog("FinishConfiguration recibido");
                     sendAcknowledgeFinishConfiguration(out, compressionThreshold);
                     plugin.debugLog("✔ Entrando al estado Play");
