@@ -121,7 +121,7 @@ public class RealmGate {
 
                 sendJavaHandshake(out, host, port);
                 sendJavaLoginStart(out, session.getUsername(), session.getUuid());
-                boolean success = waitForLoginSuccess(in, session);
+                boolean success = waitForLoginSuccess(in, out, session);
 
                 if (success) {
                     javaConnections.put(ip, socket);
@@ -164,8 +164,16 @@ public class RealmGate {
         plugin.debugLog("LoginStart enviado: " + username);
     }
 
-    // ✅ FIX: manejo correcto de SetCompression
-    private boolean waitForLoginSuccess(DataInputStream in, BedrockSession session) throws IOException {
+    // ✅ FIX: LoginAcknowledged obligatorio en 1.20.2+
+    private void sendLoginAcknowledged(DataOutputStream out) throws IOException {
+        ByteArrayOutputStream buf  = new ByteArrayOutputStream();
+        DataOutputStream      data = new DataOutputStream(buf);
+        writeVarInt(data, 0x03);
+        sendJavaPacket(out, buf.toByteArray());
+        plugin.debugLog("LoginAcknowledged enviado");
+    }
+
+    private boolean waitForLoginSuccess(DataInputStream in, DataOutputStream out, BedrockSession session) throws IOException {
         long timeout = System.currentTimeMillis() + 8000;
         int compressionThreshold = -1;
 
@@ -203,18 +211,22 @@ public class RealmGate {
             int id = readVarInt(pkt);
             plugin.debugLog("Respuesta Java: 0x" + String.format("%02X", id));
 
-            if (id == 0x02) {
+            if (id == 0x02) { // LoginSuccess
                 long msb  = pkt.readLong();
                 long lsb  = pkt.readLong();
                 String name = readJavaString(pkt);
                 session.setUuid(new UUID(msb, lsb));
                 session.setUsername(name);
                 plugin.debugLog("LoginSuccess: " + name);
+
+                // ✅ Enviar LoginAcknowledged obligatorio en 1.20.2+
+                sendLoginAcknowledged(out);
+
                 return true;
-            } else if (id == 0x00) {
+            } else if (id == 0x00) { // Disconnect
                 plugin.debugLog("Disconnect del servidor Java: " + readJavaString(pkt));
                 return false;
-            } else if (id == 0x03) {
+            } else if (id == 0x03) { // SetCompression
                 compressionThreshold = readVarInt(pkt);
                 plugin.debugLog("SetCompression threshold: " + compressionThreshold);
             }
