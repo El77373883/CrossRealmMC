@@ -11,6 +11,7 @@ public class BedrockSession {
     private String xuid;
     private UUID uuid;
     private boolean authenticated = false;
+    private boolean javaConnected = false; // NUEVO
     private final long createdAt;
 
     public BedrockSession(InetSocketAddress address, String bedrockVersion) {
@@ -29,15 +30,16 @@ public class BedrockSession {
     public void setUuid(UUID uuid) { this.uuid = uuid; }
     public boolean isAuthenticated() { return authenticated; }
     public void setAuthenticated(boolean authenticated) { this.authenticated = authenticated; }
+    public boolean isJavaConnected() { return javaConnected; }
+    public void setJavaConnected(boolean javaConnected) { this.javaConnected = javaConnected; }
     public long getCreatedAt() { return createdAt; }
 
     @Override
     public String toString() {
-        return "BedrockSession{" +
-                "ip=" + address.getAddress().getHostAddress() +
-                ", version=" + bedrockVersion +
-                ", username=" + username +
-                ", authenticated=" + authenticated +
-                '}';
+        return "BedrockSession{ip=" + address.getAddress().getHostAddress()
+                + ", version=" + bedrockVersion
+                + ", username=" + username
+                + ", authenticated=" + authenticated
+                + ", javaConnected=" + javaConnected + '}';
     }
 }
