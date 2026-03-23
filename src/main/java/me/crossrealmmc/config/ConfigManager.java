@@ -20,22 +20,18 @@ public class ConfigManager {
     }
 
     public void loadAll() {
-        // config.yml
         plugin.saveDefaultConfig();
         plugin.reloadConfig();
         this.config = plugin.getConfig();
         this.language = config.getString("language", "es");
 
-        // messages.yml
         File messagesFile = new File(plugin.getDataFolder(), "messages.yml");
         if (!messagesFile.exists()) plugin.saveResource("messages.yml", false);
         this.messages = YamlConfiguration.loadConfiguration(messagesFile);
 
-        // Crear carpeta de logs
         File logsFolder = new File(plugin.getDataFolder(), "logs");
         if (!logsFolder.exists()) logsFolder.mkdirs();
 
-        // Crear bans.yml si no existe
         File bansFile = new File(plugin.getDataFolder(), "bans.yml");
         if (!bansFile.exists()) {
             try { bansFile.createNewFile(); } catch (Exception ignored) {}
@@ -66,6 +62,8 @@ public class ConfigManager {
     // Server
     public String getJavaIp() { return config.getString("server.java-ip", "127.0.0.1"); }
     public int getJavaPort() { return config.getInt("server.java-port", 25565); }
+    public String getJavaServerHost() { return config.getString("server.java-ip", "mc304.boxtoplay.com"); } // ✅ NUEVO
+    public int getJavaServerPort() { return config.getInt("server.java-port", 26573); }                    // ✅ NUEVO
     public String getBedrockIp() { return config.getString("server.bedrock-ip", "0.0.0.0"); }
     public int getBedrockPort() { return config.getInt("server.bedrock-port", 19132); }
     public String getMotdLine1() { return config.getString("server.motd-line1", "CrossRealmMC"); }
