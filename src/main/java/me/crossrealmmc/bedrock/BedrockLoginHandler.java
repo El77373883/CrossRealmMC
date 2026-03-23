@@ -37,7 +37,6 @@ public class BedrockLoginHandler {
     public static final int STATUS_FAILED_CLIENT = 1;
     public static final int STATUS_PLAYER_SPAWN  = 3;
 
-    // Stone runtime ID en Bedrock = 1
     private static final int STONE_RUNTIME_ID = 1;
 
     private static final byte[] EMPTY_BIOME_DATA = {0x01, 0x01, 0x00};
@@ -68,8 +67,9 @@ public class BedrockLoginHandler {
     public void handleLoginPacket(ChannelHandlerContext ctx, ByteBuf buf,
             InetSocketAddress sender, BedrockPlayer player) {
         try {
-            int protocol = buf.readIntLE();
-            player.setProtocol(protocol);
+            // ✅ CAMBIO 1: leer protocolo como unsigned para evitar valores negativos
+            long protocol = Integer.toUnsignedLong(buf.readInt());
+            player.setProtocol((int) protocol);
             plugin.log("&aLogin Bedrock | Protocolo: &e" + protocol
                     + " &7de: &f" + sender.getAddress().getHostAddress());
 
@@ -171,7 +171,7 @@ public class BedrockLoginHandler {
             player.getState() == BedrockPlayer.State.SPAWNING) return;
 
         player.setState(BedrockPlayer.State.SPAWNING);
-        player.setPosition(0, 16, 0); // spawn encima del piso de piedra
+        player.setPosition(0, 16, 0);
         plugin.log("&aEnviando StartGame a: &e" + player.getUsername());
 
         ByteBuf buf = Unpooled.buffer();
@@ -180,7 +180,7 @@ public class BedrockLoginHandler {
         writeVarLong(buf, player.getEntityId());
         writeVarInt(buf, 0);
         buf.writeFloatLE(0);
-        buf.writeFloatLE(16); // spawn Y=16
+        buf.writeFloatLE(16);
         buf.writeFloatLE(0);
         buf.writeFloatLE(0);
         buf.writeFloatLE(0);
@@ -269,6 +269,12 @@ public class BedrockLoginHandler {
                 sender.getAddress().getHostAddress(),
                 "26.3"
             );
+
+            // ✅ CAMBIO 2: conectar al servidor Java después del spawn
+            String ip = sender.getAddress().getHostAddress();
+            plugin.debugLog("Iniciando bridge Java para: " + player.getUsername());
+            plugin.getRealmGate().connectToJavaAfterSpawn(ip, player);
+
             Bukkit.getScheduler().runTask(plugin, () -> {
                 String joinMsg = plugin.getConfigManager().getMessage(
                         "player-join-bedrock",
@@ -369,18 +375,15 @@ public class BedrockLoginHandler {
             int chunkX, int chunkZ, boolean withFloor) {
         try {
             ByteBuf chunkData = Unpooled.buffer();
-
             for (int i = 0; i < 24; i++) {
                 if (withFloor && i == 4) {
-                    // Subchunk 4 = Y=0 a Y=15 — todo piedra (singleton)
-                    chunkData.writeByte(8);    // version
-                    chunkData.writeByte(2);    // 2 layers
-                    chunkData.writeByte(0x01); // singleton isRuntime layer 0
-                    writeVarInt(chunkData, STONE_RUNTIME_ID); // toda piedra
-                    chunkData.writeByte(0x01); // singleton isRuntime layer 1
-                    writeVarInt(chunkData, 0); // aire
+                    chunkData.writeByte(8);
+                    chunkData.writeByte(2);
+                    chunkData.writeByte(0x01);
+                    writeVarInt(chunkData, STONE_RUNTIME_ID);
+                    chunkData.writeByte(0x01);
+                    writeVarInt(chunkData, 0);
                 } else {
-                    // Subchunk de aire
                     chunkData.writeByte(8);
                     chunkData.writeByte(2);
                     chunkData.writeByte(1);
@@ -389,7 +392,6 @@ public class BedrockLoginHandler {
                     writeVarInt(chunkData, 0);
                 }
             }
-
             chunkData.writeBytes(EMPTY_CHUNK_PAYLOAD);
 
             ByteBuf buf = Unpooled.buffer();
@@ -449,7 +451,7 @@ public class BedrockLoginHandler {
         ByteBuf buf = Unpooled.buffer();
         writeVarInt(buf, PACKET_RESPAWN);
         buf.writeFloatLE(0);
-        buf.writeFloatLE(16); // Y=16
+        buf.writeFloatLE(16);
         buf.writeFloatLE(0);
         buf.writeByte(0);
         writeVarLong(buf, player.getEntityId());
