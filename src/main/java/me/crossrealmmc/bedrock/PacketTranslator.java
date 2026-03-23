@@ -77,7 +77,9 @@ public class PacketTranslator {
                 handleRequestNetworkSettings(ctx, buf, sender, player, loginHandler);
                 break;
             case 0x71:
+                // ✅ FIX: notificar al servidor que el cliente está listo
                 plugin.debugLog("SetLocalPlayerAsInitialized de: " + player.getUsername());
+                loginHandler.sendStartGamePost(ctx, sender, player);
                 break;
             case 0x81:
                 plugin.debugLog("ClientCacheStatus recibido");
