@@ -364,8 +364,9 @@ public class BedrockLoginHandler {
             writeVarInt(buf, PACKET_LEVEL_CHUNK);
             writeZigZagInt(buf, chunkX);
             writeZigZagInt(buf, chunkZ);
-            writeVarInt(buf, 0);
-            writeVarInt(buf, 24);
+            writeVarInt(buf, 0);      // overworld
+            writeVarInt(buf, 24);     // subchunks
+            writeZigZagInt(buf, -4);  // minSubChunkIndex (-64 / 16 = -4)
             buf.writeBoolean(false);
             writeVarInt(buf, chunkData.readableBytes());
             buf.writeBytes(chunkData);
