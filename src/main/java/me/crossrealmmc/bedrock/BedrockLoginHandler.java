@@ -37,15 +37,10 @@ public class BedrockLoginHandler {
     public static final int STATUS_FAILED_CLIENT = 1;
     public static final int STATUS_PLAYER_SPAWN  = 3;
 
-    // Formato exacto de Geyser (MIT License) - https://github.com/GeyserMC/Geyser
-    // EMPTY_BIOME_DATA = BlockStorage singleton con air
     private static final byte[] EMPTY_BIOME_DATA = {0x01, 0x01, 0x00};
-    // Marker = (127 << 1) | 1 = 0xFF — "carry biome from previous section"
     private static final byte BIOME_MARKER = (byte) 0xFF;
-    // Overworld subchunks = 384 / 16 = 24
     private static final int OVERWORLD_SUBCHUNK_COUNT = 24;
 
-    // Payload pre-calculado: bioma + 23 markers + border blocks(0)
     private static final byte[] EMPTY_CHUNK_PAYLOAD;
     static {
         int total = EMPTY_BIOME_DATA.length + OVERWORLD_SUBCHUNK_COUNT;
@@ -54,7 +49,7 @@ public class BedrockLoginHandler {
         for (int i = 0; i < OVERWORLD_SUBCHUNK_COUNT - 1; i++) {
             EMPTY_CHUNK_PAYLOAD[EMPTY_BIOME_DATA.length + i] = BIOME_MARKER;
         }
-        EMPTY_CHUNK_PAYLOAD[total - 1] = 0; // border blocks (Edu edition only)
+        EMPTY_CHUNK_PAYLOAD[total - 1] = 0;
     }
 
     public BedrockLoginHandler(CrossRealmMC plugin, AtomicInteger sendSequence,
@@ -280,7 +275,6 @@ public class BedrockLoginHandler {
             });
         }, 2L);
 
-        // Timer periódico cada 5 segundos
         Bukkit.getScheduler().runTaskTimerAsynchronously(plugin, () -> {
             if (player.getState() == BedrockPlayer.State.PLAYING) {
                 sendNetworkChunkPublisherUpdate(ctx, sender, player);
@@ -361,19 +355,17 @@ public class BedrockLoginHandler {
         plugin.log("&aChunks vacíos enviados: &e" + count);
     }
 
-    // Formato exacto de Geyser (MIT License) - https://github.com/GeyserMC/Geyser
     private void sendEmptyChunk(ChannelHandlerContext ctx, InetSocketAddress sender, int chunkX, int chunkZ) {
         try {
             ByteBuf buf = Unpooled.buffer();
             writeVarInt(buf, PACKET_LEVEL_CHUNK);
-            writeZigZagInt(buf, chunkX);       // chunkX
-            writeZigZagInt(buf, chunkZ);       // chunkZ
-            writeVarInt(buf, 0);               // dimension = overworld
-            writeVarInt(buf, 0);               // subChunksLength = 0
-            buf.writeBoolean(false);           // cacheEnabled = false
+            writeZigZagInt(buf, chunkX);
+            writeZigZagInt(buf, chunkZ);
+            writeVarInt(buf, 0);
+            writeVarInt(buf, 0);
+            buf.writeBoolean(false);
             writeVarInt(buf, EMPTY_CHUNK_PAYLOAD.length);
             buf.writeBytes(EMPTY_CHUNK_PAYLOAD);
-
             sendGamePacket(ctx, sender, buf);
         } catch (Exception e) {
             plugin.debugLog("Error enviando chunk: " + e.getMessage());
