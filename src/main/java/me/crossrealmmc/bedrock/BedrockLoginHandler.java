@@ -343,40 +343,58 @@ public class BedrockLoginHandler {
 
     private void sendEmptyChunk(ChannelHandlerContext ctx, InetSocketAddress sender, int chunkX, int chunkZ) {
         try {
-            ByteBuf chunkData = Unpooled.buffer();
-
-            // 24 subchunks — Y=-64 a Y=320
-            for (int i = 0; i < 24; i++) {
-                chunkData.writeByte(8);    // version
-                chunkData.writeByte(2);    // 2 layers
-                chunkData.writeByte(1);    // isRuntime flag layer 0
-                writeVarInt(chunkData, 0); // air
-                chunkData.writeByte(1);    // isRuntime flag layer 1
-                writeVarInt(chunkData, 0); // air
-            }
-
-            // 25 secciones de bioma (plains)
+            // Solo biomas — modo SubChunkRequest (subChunkCount = -1)
+            ByteBuf biomes = Unpooled.buffer();
             for (int i = 0; i < 25; i++) {
-                chunkData.writeByte(1);    // isRuntime
-                writeVarInt(chunkData, 1); // plains
+                biomes.writeByte(1);       // isRuntime
+                writeVarInt(biomes, 1);    // plains
             }
-            writeVarInt(chunkData, 0); // border blocks
+            writeVarInt(biomes, 0);        // border blocks
 
-            // LevelChunkPacket — SIN campo dimension extra
             ByteBuf buf = Unpooled.buffer();
             writeVarInt(buf, PACKET_LEVEL_CHUNK);
-            writeZigZagInt(buf, chunkX);    // chunkX
-            writeZigZagInt(buf, chunkZ);    // chunkZ
-            writeVarInt(buf, 24);           // subChunkCount
-            writeZigZagInt(buf, -4);        // highestSubChunk (-64/16 = -4)
-            buf.writeBoolean(false);        // cacheEnabled = false
-            writeVarInt(buf, chunkData.readableBytes());
-            buf.writeBytes(chunkData);
-            chunkData.release();
+            writeZigZagInt(buf, chunkX);
+            writeZigZagInt(buf, chunkZ);
+            writeVarInt(buf, 0xFFFFFFFF);  // subChunkCount = -1 → modo SubChunkRequest
+            buf.writeBoolean(false);       // cacheEnabled
+            writeVarInt(buf, biomes.readableBytes());
+            buf.writeBytes(biomes);
+            biomes.release();
 
             sendGamePacket(ctx, sender, buf);
         } catch (Exception e) {
             plugin.debugLog("Error enviando chunk: " + e.getMessage());
+        }
+    }
+
+    // Responde a un SubChunkRequest con aire
+    public void sendSubChunkResponse(ChannelHandlerContext ctx, InetSocketAddress sender,
+            int dimension, int chunkX, int subChunkY, int chunkZ) {
+        try {
+            ByteBuf subChunkData = Unpooled.buffer();
+            // Subchunk version 8, 2 layers, aire
+            subChunkData.writeByte(8);
+            subChunkData.writeByte(2);
+            subChunkData.writeByte(1);
+            writeVarInt(subChunkData, 0);
+            subChunkData.writeByte(1);
+            writeVarInt(subChunkData, 0);
+
+            ByteBuf buf = Unpooled.buffer();
+            writeVarInt(buf, 0x67);        // SubChunkPacket
+            writeVarInt(buf, dimension);
+            writeZigZagInt(buf, chunkX);
+            writeVarInt(buf, subChunkY);
+            writeZigZagInt(buf, chunkZ);
+            buf.writeByte(0);             // requestResult = success
+            writeVarInt(buf, subChunkData.readableBytes());
+            buf.writeBytes(subChunkData);
+            subChunkData.release();
+
+            sendGamePacket(ctx, sender, buf);
+            plugin.debugLog("SubChunkResponse enviado: " + chunkX + "," + subChunkY + "," + chunkZ);
+        } catch (Exception e) {
+            plugin.debugLog("Error SubChunkResponse: " + e.getMessage());
         }
     }
 
