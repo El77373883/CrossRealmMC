@@ -86,10 +86,12 @@ public class RealmGate {
         return true;
     }
 
-    /**
-     * Llamado desde BedrockLoginHandler después del spawn.
-     * Conecta al servidor Java en un hilo separado.
-     */
+    // ✅ NUEVO: registrar sesion directamente sin pasar por cooldown/pending
+    public void registerAuthenticatedSession(String ip, BedrockSession session) {
+        authenticatedSessions.put(ip, session);
+        plugin.debugLog("Sesion directa registrada: " + ip + " | " + session.getUsername());
+    }
+
     public void connectToJavaAfterSpawn(String ip, BedrockPlayer player) {
         BedrockSession session = authenticatedSessions.get(ip);
         if (session == null) {
@@ -115,16 +117,11 @@ public class RealmGate {
 
                 DataOutputStream out = new DataOutputStream(
                         new BufferedOutputStream(socket.getOutputStream()));
-                DataInputStream  in  = new DataInputStream(
+                DataInputStream in = new DataInputStream(
                         new BufferedInputStream(socket.getInputStream()));
 
-                // --- Handshake ---
                 sendJavaHandshake(out, host, port);
-
-                // --- LoginStart ---
                 sendJavaLoginStart(out, session.getUsername(), session.getUuid());
-
-                // --- Esperar LoginSuccess ---
                 boolean success = waitForLoginSuccess(in, session);
 
                 if (success) {
@@ -133,7 +130,7 @@ public class RealmGate {
                     plugin.debugLog("✔ " + session.getUsername() + " conectado al servidor Java");
                 } else {
                     socket.close();
-                    plugin.debugLog("✘ Servidor Java rechazó a: " + session.getUsername());
+                    plugin.debugLog("✘ Servidor Java rechazo a: " + session.getUsername());
                     removeSession(ip);
                 }
 
@@ -145,16 +142,14 @@ public class RealmGate {
         }, "JavaConnect-" + session.getUsername()).start();
     }
 
-    // ── Handshake Java (protocolo 769 = 1.21.4) ──────────────────────────────
-
     private void sendJavaHandshake(DataOutputStream out, String host, int port) throws IOException {
         ByteArrayOutputStream buf  = new ByteArrayOutputStream();
         DataOutputStream      data = new DataOutputStream(buf);
-        writeVarInt(data, 0x00);   // Packet ID
-        writeVarInt(data, 769);    // Protocol version 1.21.4 — cambia si tu server es diferente
+        writeVarInt(data, 0x00);
+        writeVarInt(data, 769); // 1.21.4 — cambia si tu server usa otra version
         writeJavaString(data, host);
         data.writeShort(port);
-        writeVarInt(data, 2);      // Next state: Login
+        writeVarInt(data, 2);
         sendJavaPacket(out, buf.toByteArray());
         plugin.debugLog("Handshake Java enviado");
     }
@@ -162,9 +157,9 @@ public class RealmGate {
     private void sendJavaLoginStart(DataOutputStream out, String username, UUID uuid) throws IOException {
         ByteArrayOutputStream buf  = new ByteArrayOutputStream();
         DataOutputStream      data = new DataOutputStream(buf);
-        writeVarInt(data, 0x00);   // Packet ID: LoginStart
+        writeVarInt(data, 0x00);
         writeJavaString(data, username);
-        data.writeBoolean(true);   // Has UUID
+        data.writeBoolean(true);
         data.writeLong(uuid.getMostSignificantBits());
         data.writeLong(uuid.getLeastSignificantBits());
         sendJavaPacket(out, buf.toByteArray());
@@ -186,7 +181,7 @@ public class RealmGate {
             int id = readVarInt(pkt);
             plugin.debugLog("Respuesta Java: 0x" + String.format("%02X", id));
 
-            if (id == 0x02) { // LoginSuccess
+            if (id == 0x02) {
                 long msb  = pkt.readLong();
                 long lsb  = pkt.readLong();
                 String name = readJavaString(pkt);
@@ -194,18 +189,16 @@ public class RealmGate {
                 session.setUsername(name);
                 plugin.debugLog("LoginSuccess: " + name);
                 return true;
-            } else if (id == 0x00) { // Disconnect
+            } else if (id == 0x00) {
                 plugin.debugLog("Disconnect del servidor Java: " + readJavaString(pkt));
                 return false;
-            } else if (id == 0x03) { // SetCompression — ignorar por ahora
+            } else if (id == 0x03) {
                 plugin.debugLog("SetCompression recibido, ignorando");
             }
         }
         plugin.debugLog("Timeout esperando LoginSuccess");
         return false;
     }
-
-    // ── Utilidades protocolo Java ─────────────────────────────────────────────
 
     private void sendJavaPacket(DataOutputStream out, byte[] data) throws IOException {
         writeVarInt(out, data.length);
@@ -245,8 +238,6 @@ public class RealmGate {
         in.readFully(bytes);
         return new String(bytes, StandardCharsets.UTF_8);
     }
-
-    // ── Sesiones ──────────────────────────────────────────────────────────────
 
     public BedrockSession getSession(String ip) {
         return authenticatedSessions.getOrDefault(ip, pendingSessions.get(ip));
