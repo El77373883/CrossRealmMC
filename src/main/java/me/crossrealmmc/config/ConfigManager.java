@@ -77,17 +77,6 @@ public class ConfigManager {
     public int getMaxBedrockPlayers() { return config.getInt("server.max-bedrock-players", 0); }
 
     // Auth - unified online-mode with fallback
-    private boolean getOnlineMode() {
-        // Si existe la clave unificada "online-mode", la usamos
-        if (config.contains("online-mode")) {
-            return config.getBoolean("online-mode", false);
-        }
-        // Si no, usamos las antiguas claves separadas
-        // pero aquí devolvemos false por defecto para Bedrock
-        // y true para Java (comportamiento original)
-        return false;
-    }
-
     public boolean isJavaOnlineMode() {
         if (config.contains("online-mode")) {
             return config.getBoolean("online-mode", false);
