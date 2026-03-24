@@ -166,7 +166,6 @@ public class BedrockLoginHandler {
         }
     }
 
-    // ---------- Los siguientes métodos no cambian, se mantienen igual ----------
     public void handleResourcePackResponse(ChannelHandlerContext ctx, ByteBuf buf,
             InetSocketAddress sender, BedrockPlayer player) {
         if (!buf.isReadable()) return;
