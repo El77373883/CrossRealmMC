@@ -1,4 +1,3 @@
-# Configuración completa con MOTD personalizable
 server:
   java-ip: "127.0.0.1"
   java-port: 26573
@@ -10,6 +9,6 @@ server:
 online-mode: false
 
 bedrock-versions:
-  - "26.3"
+  - "26.10"
 
 debug: true
