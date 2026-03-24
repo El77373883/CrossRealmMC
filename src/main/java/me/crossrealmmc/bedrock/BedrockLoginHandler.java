@@ -22,6 +22,7 @@ public class BedrockLoginHandler {
     private final AtomicInteger messageIndex;
     private final AtomicInteger orderIndex;
     private final Map<Integer, byte[]> sentPacketCache;
+    private final XboxAuthManager xboxAuth = new XboxAuthManager();
 
     public static final int PACKET_LOGIN               = 0x01;
     public static final int PACKET_PLAY_STATUS         = 0x02;
@@ -68,24 +69,49 @@ public class BedrockLoginHandler {
     public void handleLoginPacket(ChannelHandlerContext ctx, ByteBuf buf,
             InetSocketAddress sender, BedrockPlayer player) {
         try {
-            // ✅ FIX 1: protocolo unsigned
             long protocol = Integer.toUnsignedLong(buf.readInt());
             player.setProtocol((int) protocol);
             plugin.log("&aLogin Bedrock | Protocolo: &e" + protocol
                     + " &7de: &f" + sender.getAddress().getHostAddress());
 
             if (!plugin.getConfigManager().isBedrockOnlineMode()) {
-                String username = "Bedrock_" + (int)(Math.random() * 99999);
+                // Modo offline: extraer nombre real del JWT si existe
+                String username = null;
+                String xuid = null;
+                try {
+                    int chainLength = buf.readIntLE();
+                    if (chainLength > 0 && chainLength <= 65536) {
+                        byte[] chainBytes = new byte[chainLength];
+                        buf.readBytes(chainBytes);
+                        String jwtChain = new String(chainBytes, StandardCharsets.UTF_8);
+                        XboxAuthManager.PlayerInfo info = xboxAuth.extractFromJwt(jwtChain);
+                        if (info.success && info.username != null && !info.username.isEmpty()) {
+                            username = info.username;
+                            xuid = info.xuid;
+                        }
+                    }
+                } catch (Exception e) {
+                    plugin.debugLog("Error extrayendo JWT en modo offline: " + e.getMessage());
+                }
+
+                if (username == null || username.isEmpty()) {
+                    username = "Bedrock_" + (int)(Math.random() * 99999);
+                }
+
                 String prefixedName = plugin.getConfigManager().getBedrockPrefix() + username;
-                UUID uuid = UUID.nameUUIDFromBytes(
-                        ("bedrock_offline:" + username).getBytes(StandardCharsets.UTF_8));
+                UUID uuid;
+                if (xuid != null && !xuid.isEmpty()) {
+                    uuid = UUID.nameUUIDFromBytes(("bedrock:" + xuid).getBytes(StandardCharsets.UTF_8));
+                } else {
+                    uuid = UUID.nameUUIDFromBytes(("bedrock_offline:" + username).getBytes(StandardCharsets.UTF_8));
+                }
+
                 player.setUsername(prefixedName);
                 player.setUuid(uuid);
                 player.setState(BedrockPlayer.State.LOGIN);
                 plugin.log("&aJugador offline aceptado: &e" + prefixedName);
                 plugin.getPlayerDetector().registerPlayer(uuid, PlayerDetector.PlayerType.BEDROCK, "26.3");
 
-                // ✅ FIX 2: registrar sesion en RealmGate directamente
                 BedrockSession bedrockSession = new BedrockSession(sender, "26.3");
                 bedrockSession.setUsername(prefixedName);
                 bedrockSession.setUuid(uuid);
@@ -99,6 +125,7 @@ public class BedrockLoginHandler {
                 return;
             }
 
+            // Modo online (autenticación completa)
             if (!buf.isReadable(4)) { sendPlayStatus(ctx, sender, STATUS_FAILED_CLIENT); return; }
             int chainLength = buf.readIntLE();
             if (chainLength <= 0 || chainLength > 65536) { sendPlayStatus(ctx, sender, STATUS_FAILED_CLIENT); return; }
@@ -106,7 +133,6 @@ public class BedrockLoginHandler {
             buf.readBytes(chainBytes);
             String jwtChain = new String(chainBytes, StandardCharsets.UTF_8);
 
-            XboxAuthManager xboxAuth = new XboxAuthManager();
             XboxAuthManager.AuthResult auth = xboxAuth.authenticate(jwtChain, true);
             if (!auth.authenticated) {
                 plugin.log("&cAuth fallida: &f" + auth.errorMessage);
@@ -122,7 +148,6 @@ public class BedrockLoginHandler {
             plugin.log("&aJugador autenticado: &e" + prefixedName);
             plugin.getPlayerDetector().registerPlayer(auth.uuid, PlayerDetector.PlayerType.BEDROCK, "26.3");
 
-            // ✅ FIX 2 también para online mode
             BedrockSession bedrockSession = new BedrockSession(sender, "26.3");
             bedrockSession.setUsername(prefixedName);
             bedrockSession.setXuid(auth.xuid);
@@ -141,6 +166,7 @@ public class BedrockLoginHandler {
         }
     }
 
+    // ---------- Los siguientes métodos no cambian, se mantienen igual ----------
     public void handleResourcePackResponse(ChannelHandlerContext ctx, ByteBuf buf,
             InetSocketAddress sender, BedrockPlayer player) {
         if (!buf.isReadable()) return;
@@ -290,7 +316,6 @@ public class BedrockLoginHandler {
                 "26.3"
             );
 
-            // ✅ FIX 3: conectar al servidor Java después del spawn
             String ip = sender.getAddress().getHostAddress();
             plugin.debugLog("Iniciando bridge Java para: " + player.getUsername());
             plugin.getRealmGate().connectToJavaAfterSpawn(ip, player);
