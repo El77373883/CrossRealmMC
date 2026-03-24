@@ -1,81 +1,15 @@
-# ╔══════════════════════════════════════════════════════╗
-# ║         CrossRealmMC - Configuración Simple          ║
-# ║         (compatible con Java + Bedrock)              ║
-# ╚══════════════════════════════════════════════════════╝
-
-# --- Servidor Java (el mundo donde jugarán) ---
+# Configuración completa con MOTD personalizable
 server:
-  # IP del servidor Java al que conectar. 
-  # Si el plugin está en la misma máquina que el servidor Java, usa 127.0.0.1.
-  # Si el servidor Java está en otra máquina, pon su IP real (ej: 192.168.1.10).
   java-ip: "127.0.0.1"
-
-  # Puerto del servidor Java (el mismo que en server.properties del servidor Java).
   java-port: 26573
-
-  # IP donde escuchará el plugin para recibir conexiones Bedrock.
-  # 0.0.0.0 significa que escucha en todas las interfaces de red (recomendado).
   bedrock-ip: "0.0.0.0"
-
-  # Puerto UDP para Bedrock (puede ser 19132, 26573, etc.).
   bedrock-port: 26573
-
-# --- Modo online (autenticación) ---
-# false = cualquier jugador puede entrar (modo offline / sin verificar cuenta).
-# true  = solo jugadores con cuenta autenticada (Java: Mojang, Bedrock: Xbox).
-online-mode: false
-
-# --- Versiones de Bedrock que aceptarás ---
-# Aquí solo la versión que estás usando (26.3 = 1.21.70).
-bedrock-versions:
-  - "26.3"
-
-# --- Prefijo para jugadores Bedrock (opcional) ---
-# Se añade delante del nombre para diferenciarlos de los jugadores Java.
-# Si no quieres prefijo, déjalo vacío: bedrock-prefix: ""
-authentication:
-  bedrock-prefix: "."
-
-# --- Mensajes del servidor (MOTD) ---
-# Se muestran en la lista de servidores.
-server:
   motd-line1: "&bCrossRealmMC &7| Java + Bedrock"
   motd-line2: "&aConecta desde cualquier edicion!"
 
-# --- Límite de jugadores Bedrock (0 = sin límite) ---
-  max-bedrock-players: 0
+online-mode: false
 
-# --- Modo depuración (debug) ---
-# Actívalo para ver logs detallados y solucionar problemas.
+bedrock-versions:
+  - "26.3"
+
 debug: true
-
-# --- Opciones de chat (prefijos en el chat) ---
-chat:
-  show-edition-prefix: true
-  java-prefix: "&7[&aJava&7]"
-  bedrock-prefix: "&7[&bBedrock&7]"
-
-# --- Anti-cheat (puedes desactivarlo si no lo necesitas) ---
-anticheat:
-  enabled: true
-  check-movement: true
-  check-speed: true
-  action: "KICK"
-  kick-message: "&cFuiste expulsado por movimiento invalido."
-
-# --- Registro de conexiones (logs) ---
-logging:
-  enabled: true
-  log-bedrock-join: true
-  log-java-join: false
-  log-disconnect: true
-
-# --- Cooldown para reconexión rápida ---
-reconnect-cooldown:
-  enabled: true
-  seconds: 5
-
-# --- Reinicio automático del bridge si se cae ---
-auto-restart:
-  enabled: true
-  delay-seconds: 10
