@@ -63,7 +63,6 @@ public class ConfigManager {
     public String getJavaIp() { return config.getString("server.java-ip", "127.0.0.1"); }
     public int getJavaPort() { return config.getInt("server.java-port", 25565); }
     
-    // Métodos usados por RealmGate
     public String getJavaServerHost() { 
         return config.getString("server.java-ip", "127.0.0.1"); 
     }
@@ -77,9 +76,32 @@ public class ConfigManager {
     public String getMotdLine2() { return config.getString("server.motd-line2", "Java + Bedrock"); }
     public int getMaxBedrockPlayers() { return config.getInt("server.max-bedrock-players", 0); }
 
-    // Auth
-    public boolean isJavaOnlineMode() { return config.getBoolean("authentication.java-online-mode", true); }
-    public boolean isBedrockOnlineMode() { return config.getBoolean("authentication.bedrock-online-mode", false); }
+    // Auth - unified online-mode with fallback
+    private boolean getOnlineMode() {
+        // Si existe la clave unificada "online-mode", la usamos
+        if (config.contains("online-mode")) {
+            return config.getBoolean("online-mode", false);
+        }
+        // Si no, usamos las antiguas claves separadas
+        // pero aquí devolvemos false por defecto para Bedrock
+        // y true para Java (comportamiento original)
+        return false;
+    }
+
+    public boolean isJavaOnlineMode() {
+        if (config.contains("online-mode")) {
+            return config.getBoolean("online-mode", false);
+        }
+        return config.getBoolean("authentication.java-online-mode", true);
+    }
+
+    public boolean isBedrockOnlineMode() {
+        if (config.contains("online-mode")) {
+            return config.getBoolean("online-mode", false);
+        }
+        return config.getBoolean("authentication.bedrock-online-mode", false);
+    }
+
     public String getBedrockPrefix() { return config.getString("authentication.bedrock-prefix", "."); }
 
     // Versions
