@@ -62,8 +62,15 @@ public class ConfigManager {
     // Server
     public String getJavaIp() { return config.getString("server.java-ip", "127.0.0.1"); }
     public int getJavaPort() { return config.getInt("server.java-port", 25565); }
-    public String getJavaServerHost() { return config.getString("server.java-ip", "mc304.boxtoplay.com"); } // ✅ NUEVO
-    public int getJavaServerPort() { return config.getInt("server.java-port", 26573); }                    // ✅ NUEVO
+    
+    // Métodos usados por RealmGate
+    public String getJavaServerHost() { 
+        return config.getString("server.java-ip", "127.0.0.1"); 
+    }
+    public int getJavaServerPort() { 
+        return config.getInt("server.java-port", 26573); 
+    }
+    
     public String getBedrockIp() { return config.getString("server.bedrock-ip", "0.0.0.0"); }
     public int getBedrockPort() { return config.getInt("server.bedrock-port", 19132); }
     public String getMotdLine1() { return config.getString("server.motd-line1", "CrossRealmMC"); }
