@@ -17,7 +17,7 @@ import java.util.concurrent.Executors;
 public class RealmGate {
 
     private final CrossRealmMC plugin;
-    private final ExecutorService javaConnector = Executors.newFixedThreadPool(10); // Limita hilos
+    private final ExecutorService javaConnector = Executors.newFixedThreadPool(10);
 
     private final Map<String, BedrockSession> pendingSessions       = new HashMap<>();
     private final Map<String, BedrockSession> authenticatedSessions = new HashMap<>();
@@ -26,8 +26,6 @@ public class RealmGate {
     public RealmGate(CrossRealmMC plugin) {
         this.plugin = plugin;
     }
-
-    // ==================== Métodos de sesión ====================
 
     public BedrockSession createSession(InetSocketAddress address, String bedrockVersion) {
         String ip = address.getAddress().getHostAddress();
@@ -96,8 +94,6 @@ public class RealmGate {
         plugin.debugLog("Sesion directa registrada: " + ip + " | " + session.getUsername());
     }
 
-    // ==================== Conexión al servidor Java ====================
-
     public void connectToJavaAfterSpawn(String ip, BedrockPlayer player) {
         BedrockSession session = authenticatedSessions.get(ip);
         if (session == null) {
@@ -144,7 +140,6 @@ public class RealmGate {
                         + session.getUsername() + ": " + e.getMessage());
                 removeSession(ip);
             } finally {
-                // Si el socket no se guardó en javaConnections, lo cerramos
                 if (socket != null && !javaConnections.containsKey(ip)) {
                     try { socket.close(); } catch (IOException ignored) {}
                 }
@@ -152,13 +147,11 @@ public class RealmGate {
         });
     }
 
-    // ==================== Paquetes de protocolo Java ====================
-
     private void sendJavaHandshake(DataOutputStream out, String host, int port) throws IOException {
         ByteArrayOutputStream buf  = new ByteArrayOutputStream();
         DataOutputStream      data = new DataOutputStream(buf);
         writeVarInt(data, 0x00);
-        writeVarInt(data, 771); // Protocolo para 1.21.11 (1.21.5+)
+        writeVarInt(data, 771); // Protocolo Java para 1.21.11
         writeJavaString(data, host);
         data.writeShort(port);
         writeVarInt(data, 2);
@@ -283,7 +276,6 @@ public class RealmGate {
                     session.setUsername(name);
                     plugin.debugLog("LoginSuccess: " + name);
                     sendLoginAcknowledged(out);
-                    // Enviamos ClientSettings
                     sendClientSettings(out, compressionThreshold);
                     plugin.debugLog("ClientSettings enviado");
                     inConfigState = true;
@@ -298,9 +290,7 @@ public class RealmGate {
             } else {
                 // Estado CONFIGURATION
                 if (id == 0x02) {
-                    // El servidor ha terminado su configuración
                     plugin.debugLog("FinishConfiguration recibido del servidor");
-                    // Ahora enviamos nuestro FinishConfiguration
                     sendAcknowledgeFinishConfiguration(out, compressionThreshold);
                     plugin.debugLog("FinishConfiguration enviado al servidor");
                     return true;
@@ -325,7 +315,6 @@ public class RealmGate {
                     sendCompressed(out, packsContent.toByteArray(), compressionThreshold);
                     plugin.debugLog("KnownPacks enviado");
                 } else {
-                    // Otros paquetes de configuración (registros, etc.) los ignoramos
                     plugin.debugLog("Config paquete ignorado: 0x" + String.format("%02X", id));
                 }
             }
@@ -333,8 +322,6 @@ public class RealmGate {
         plugin.debugLog("Timeout esperando login/config");
         return false;
     }
-
-    // ==================== Métodos auxiliares ====================
 
     private byte[] decompress(byte[] data, int expectedSize) throws IOException {
         try {
