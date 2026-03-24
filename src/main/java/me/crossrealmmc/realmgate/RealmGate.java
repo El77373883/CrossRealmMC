@@ -27,6 +27,8 @@ public class RealmGate {
         this.plugin = plugin;
     }
 
+    // ==================== Métodos de sesión ====================
+
     public BedrockSession createSession(InetSocketAddress address, String bedrockVersion) {
         String ip = address.getAddress().getHostAddress();
 
@@ -94,6 +96,8 @@ public class RealmGate {
         plugin.debugLog("Sesion directa registrada: " + ip + " | " + session.getUsername());
     }
 
+    // ==================== Conexión al servidor Java ====================
+
     public void connectToJavaAfterSpawn(String ip, BedrockPlayer player) {
         BedrockSession session = authenticatedSessions.get(ip);
         if (session == null) {
@@ -147,6 +151,8 @@ public class RealmGate {
             }
         });
     }
+
+    // ==================== Paquetes de protocolo Java ====================
 
     private void sendJavaHandshake(DataOutputStream out, String host, int port) throws IOException {
         ByteArrayOutputStream buf  = new ByteArrayOutputStream();
@@ -280,10 +286,8 @@ public class RealmGate {
                     // Enviamos ClientSettings
                     sendClientSettings(out, compressionThreshold);
                     plugin.debugLog("ClientSettings enviado");
-                    // ✅ AHORA enviamos FinishConfiguration
-                    sendAcknowledgeFinishConfiguration(out, compressionThreshold);
-                    plugin.debugLog("FinishConfiguration enviado al servidor");
                     inConfigState = true;
+                    // NO enviamos FinishConfiguration aún; esperamos al servidor
                 } else if (id == 0x00) {
                     plugin.debugLog("Disconnect login: " + readJavaString(pkt));
                     return false;
@@ -294,7 +298,11 @@ public class RealmGate {
             } else {
                 // Estado CONFIGURATION
                 if (id == 0x02) {
+                    // El servidor ha terminado su configuración
                     plugin.debugLog("FinishConfiguration recibido del servidor");
+                    // Ahora enviamos nuestro FinishConfiguration
+                    sendAcknowledgeFinishConfiguration(out, compressionThreshold);
+                    plugin.debugLog("FinishConfiguration enviado al servidor");
                     return true;
                 } else if (id == 0x00) {
                     plugin.debugLog("Disconnect config: " + readJavaString(pkt));
@@ -317,6 +325,7 @@ public class RealmGate {
                     sendCompressed(out, packsContent.toByteArray(), compressionThreshold);
                     plugin.debugLog("KnownPacks enviado");
                 } else {
+                    // Otros paquetes de configuración (registros, etc.) los ignoramos
                     plugin.debugLog("Config paquete ignorado: 0x" + String.format("%02X", id));
                 }
             }
@@ -324,6 +333,8 @@ public class RealmGate {
         plugin.debugLog("Timeout esperando login/config");
         return false;
     }
+
+    // ==================== Métodos auxiliares ====================
 
     private byte[] decompress(byte[] data, int expectedSize) throws IOException {
         try {
