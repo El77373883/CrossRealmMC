@@ -110,9 +110,9 @@ public class BedrockLoginHandler {
                 player.setUuid(uuid);
                 player.setState(BedrockPlayer.State.LOGIN);
                 plugin.log("&aJugador offline aceptado: &e" + prefixedName);
-                plugin.getPlayerDetector().registerPlayer(uuid, PlayerDetector.PlayerType.BEDROCK, "26.3");
+                plugin.getPlayerDetector().registerPlayer(uuid, PlayerDetector.PlayerType.BEDROCK, "26.10");
 
-                BedrockSession bedrockSession = new BedrockSession(sender, "26.3");
+                BedrockSession bedrockSession = new BedrockSession(sender, "26.10");
                 bedrockSession.setUsername(prefixedName);
                 bedrockSession.setUuid(uuid);
                 bedrockSession.setAuthenticated(true);
@@ -146,9 +146,9 @@ public class BedrockLoginHandler {
             player.setUuid(auth.uuid);
             player.setState(BedrockPlayer.State.LOGIN);
             plugin.log("&aJugador autenticado: &e" + prefixedName);
-            plugin.getPlayerDetector().registerPlayer(auth.uuid, PlayerDetector.PlayerType.BEDROCK, "26.3");
+            plugin.getPlayerDetector().registerPlayer(auth.uuid, PlayerDetector.PlayerType.BEDROCK, "26.10");
 
-            BedrockSession bedrockSession = new BedrockSession(sender, "26.3");
+            BedrockSession bedrockSession = new BedrockSession(sender, "26.10");
             bedrockSession.setUsername(prefixedName);
             bedrockSession.setXuid(auth.xuid);
             bedrockSession.setUuid(auth.uuid);
@@ -264,7 +264,7 @@ public class BedrockLoginHandler {
         buf.writeBoolean(false);
         buf.writeBoolean(false);
         buf.writeBoolean(false);
-        writeString(buf, "26.3");
+        writeString(buf, "26.10");
         buf.writeIntLE(0);
         buf.writeIntLE(0);
         buf.writeBoolean(false);
@@ -312,7 +312,7 @@ public class BedrockLoginHandler {
                 player.getUsername(),
                 PlayerDetector.PlayerType.BEDROCK,
                 sender.getAddress().getHostAddress(),
-                "26.3"
+                "26.10"
             );
 
             String ip = sender.getAddress().getHostAddress();
@@ -323,7 +323,7 @@ public class BedrockLoginHandler {
                 String joinMsg = plugin.getConfigManager().getMessage(
                         "player-join-bedrock",
                         "{player}", player.getUsername(),
-                        "{version}", "26.3");
+                        "{version}", "26.10");
                 Bukkit.broadcastMessage(joinMsg);
             });
         }, 2L);
