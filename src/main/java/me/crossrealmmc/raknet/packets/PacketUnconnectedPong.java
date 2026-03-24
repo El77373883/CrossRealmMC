@@ -25,11 +25,14 @@ public class PacketUnconnectedPong {
     public ByteBuf encode() {
         ByteBuf buf = PacketUtils.newBuffer();
 
+        // Limpiar códigos de color (el MOTD de Bedrock no soporta &)
         String motd1 = color(plugin.getConfigManager().getMotdLine1());
         String motd2 = color(plugin.getConfigManager().getMotdLine2());
+
         int online = Bukkit.getOnlinePlayers().size();
         int max = Bukkit.getMaxPlayers();
 
+        // Formato del servidor para Bedrock (MCPE)
         String serverName = "MCPE" + ";"
                 + motd1 + ";"
                 + BEDROCK_PROTOCOL + ";"
@@ -44,10 +47,10 @@ public class PacketUnconnectedPong {
                 + "19133" + ";"
                 + "1";
 
-        buf.writeByte(0x1C);
-        buf.writeLong(pingTime);
-        buf.writeLong(RakNetServer.SERVER_GUID);
-        PacketUtils.writeMagic(buf);
+        buf.writeByte(0x1C);                               // ID_UNCONNECTED_PONG
+        buf.writeLong(pingTime);                           // Ping time
+        buf.writeLong(RakNetServer.SERVER_GUID);           // Server GUID
+        PacketUtils.writeMagic(buf);                       // RakNet magic
 
         byte[] nameBytes = serverName.getBytes(java.nio.charset.StandardCharsets.UTF_8);
         buf.writeShort(nameBytes.length);
@@ -57,6 +60,7 @@ public class PacketUnconnectedPong {
     }
 
     private String color(String s) {
+        // Eliminar los códigos de color (tanto § como &) porque Bedrock no los entiende en el MOTD
         return s.replace("§", "").replace("&", "");
     }
 }
