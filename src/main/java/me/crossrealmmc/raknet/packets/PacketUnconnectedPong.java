@@ -10,8 +10,8 @@ public class PacketUnconnectedPong {
     private final CrossRealmMC plugin;
     private final long pingTime;
 
-    private static final int BEDROCK_PROTOCOL = 786;      // v26.3
-    private static final String BEDROCK_VERSION = "26.3";
+    private static final int BEDROCK_PROTOCOL = 924;      // v26.10
+    private static final String BEDROCK_VERSION = "26.10";
 
     public PacketUnconnectedPong(CrossRealmMC plugin, long pingTime) {
         this.plugin = plugin;
@@ -25,14 +25,11 @@ public class PacketUnconnectedPong {
     public ByteBuf encode() {
         ByteBuf buf = PacketUtils.newBuffer();
 
-        // Limpiar códigos de color (el MOTD de Bedrock no soporta &)
         String motd1 = color(plugin.getConfigManager().getMotdLine1());
         String motd2 = color(plugin.getConfigManager().getMotdLine2());
-
         int online = Bukkit.getOnlinePlayers().size();
         int max = Bukkit.getMaxPlayers();
 
-        // Formato del servidor para Bedrock (MCPE)
         String serverName = "MCPE" + ";"
                 + motd1 + ";"
                 + BEDROCK_PROTOCOL + ";"
@@ -47,10 +44,10 @@ public class PacketUnconnectedPong {
                 + "19133" + ";"
                 + "1";
 
-        buf.writeByte(0x1C);                               // ID_UNCONNECTED_PONG
-        buf.writeLong(pingTime);                           // Ping time
-        buf.writeLong(RakNetServer.SERVER_GUID);           // Server GUID
-        PacketUtils.writeMagic(buf);                       // RakNet magic
+        buf.writeByte(0x1C);
+        buf.writeLong(pingTime);
+        buf.writeLong(RakNetServer.SERVER_GUID);
+        PacketUtils.writeMagic(buf);
 
         byte[] nameBytes = serverName.getBytes(java.nio.charset.StandardCharsets.UTF_8);
         buf.writeShort(nameBytes.length);
@@ -60,7 +57,6 @@ public class PacketUnconnectedPong {
     }
 
     private String color(String s) {
-        // Eliminar los códigos de color (tanto § como &) porque Bedrock no los entiende en el MOTD
         return s.replace("§", "").replace("&", "");
     }
 }
