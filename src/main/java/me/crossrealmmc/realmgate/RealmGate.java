@@ -11,10 +11,13 @@ import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class RealmGate {
 
     private final CrossRealmMC plugin;
+    private final ExecutorService javaConnector = Executors.newFixedThreadPool(10); // Limita hilos
 
     private final Map<String, BedrockSession> pendingSessions       = new HashMap<>();
     private final Map<String, BedrockSession> authenticatedSessions = new HashMap<>();
@@ -102,7 +105,8 @@ public class RealmGate {
             return;
         }
 
-        new Thread(() -> {
+        javaConnector.submit(() -> {
+            Socket socket = null;
             try {
                 String host = plugin.getConfigManager().getJavaServerHost();
                 int port    = plugin.getConfigManager().getJavaServerPort();
@@ -110,7 +114,7 @@ public class RealmGate {
                 plugin.debugLog("Conectando al servidor Java: " + host + ":" + port
                         + " para " + session.getUsername());
 
-                Socket socket = new Socket();
+                socket = new Socket();
                 socket.connect(new InetSocketAddress(host, port), 5000);
                 socket.setSoTimeout(15000);
 
@@ -128,24 +132,27 @@ public class RealmGate {
                     session.setJavaConnected(true);
                     plugin.debugLog("✔ " + session.getUsername() + " conectado al servidor Java");
                 } else {
-                    socket.close();
                     plugin.debugLog("✘ Servidor Java rechazo a: " + session.getUsername());
                     removeSession(ip);
                 }
-
             } catch (Exception e) {
                 plugin.debugLog("✘ Error al conectar Java para "
                         + session.getUsername() + ": " + e.getMessage());
                 removeSession(ip);
+            } finally {
+                // Si el socket no se guardó en javaConnections, lo cerramos
+                if (socket != null && !javaConnections.containsKey(ip)) {
+                    try { socket.close(); } catch (IOException ignored) {}
+                }
             }
-        }, "JavaConnect-" + session.getUsername()).start();
+        });
     }
 
     private void sendJavaHandshake(DataOutputStream out, String host, int port) throws IOException {
         ByteArrayOutputStream buf  = new ByteArrayOutputStream();
         DataOutputStream      data = new DataOutputStream(buf);
         writeVarInt(data, 0x00);
-        writeVarInt(data, 769);
+        writeVarInt(data, 771); // Protocolo para 1.21.11 (1.21.5+)
         writeJavaString(data, host);
         data.writeShort(port);
         writeVarInt(data, 2);
@@ -271,6 +278,9 @@ public class RealmGate {
                     sendLoginAcknowledged(out);
                     inConfigState = true;
                     sendClientSettings(out, compressionThreshold);
+                    // ✅ FIX: Enviamos FinishConfiguration inmediatamente después de ClientSettings
+                    sendAcknowledgeFinishConfiguration(out, compressionThreshold);
+                    plugin.debugLog("FinishConfiguration enviado al servidor");
                 } else if (id == 0x00) {
                     plugin.debugLog("Disconnect login: " + readJavaString(pkt));
                     return false;
@@ -279,19 +289,16 @@ public class RealmGate {
                     plugin.debugLog("SetCompression threshold: " + compressionThreshold);
                 }
             } else {
+                // Estado de configuración: esperamos el FinishConfiguration del servidor
                 if (id == 0x02) {
-                    plugin.debugLog("FinishConfiguration recibido");
-                    sendAcknowledgeFinishConfiguration(out, compressionThreshold);
-                    plugin.debugLog("✔ Entrando al estado Play");
+                    plugin.debugLog("FinishConfiguration recibido del servidor");
                     return true;
                 } else if (id == 0x00) {
                     plugin.debugLog("Disconnect config: " + readJavaString(pkt));
                     return false;
                 } else if (id == 0x01) {
-                    // ✅ FIX: 0x01 en config = PluginMessage del servidor, ignorar
                     plugin.debugLog("PluginMessage servidor ignorado: 0x01");
                 } else if (id == 0x05) {
-                    // Ping real en config state
                     long pingId = pkt.readLong();
                     ByteArrayOutputStream pongContent = new ByteArrayOutputStream();
                     DataOutputStream pongData = new DataOutputStream(pongContent);
