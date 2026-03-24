@@ -4,10 +4,10 @@
 # ╚══════════════════════════════════════════════╝
 
 server:
-  java-ip: "127.0.0.1"
-  java-port: 26573
-  bedrock-ip: "mc304.boxtoplay.com"
-  bedrock-port: 26573
+  java-ip: "127.0.0.1"          # IP del servidor Java al que conectar (misma máquina)
+  java-port: 26573              # Puerto TCP del servidor Java
+  bedrock-ip: "0.0.0.0"         # Escucha en todas las interfaces (NO pongas un dominio)
+  bedrock-port: 26573           # Puerto UDP para Bedrock (puede ser 19132, pero 26573 también funciona)
   motd-line1: "&bCrossRealmMC &7| Java + Bedrock"
   motd-line2: "&aConecta desde cualquier edicion!"
   max-bedrock-players: 0
