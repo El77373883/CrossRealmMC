@@ -277,10 +277,13 @@ public class RealmGate {
                     session.setUsername(name);
                     plugin.debugLog("LoginSuccess: " + name);
                     sendLoginAcknowledged(out);
-                    inConfigState = true;
+                    // Enviamos ClientSettings
                     sendClientSettings(out, compressionThreshold);
                     plugin.debugLog("ClientSettings enviado");
-                    // NO enviamos FinishConfiguration aún; esperamos al servidor
+                    // ✅ AHORA enviamos FinishConfiguration
+                    sendAcknowledgeFinishConfiguration(out, compressionThreshold);
+                    plugin.debugLog("FinishConfiguration enviado al servidor");
+                    inConfigState = true;
                 } else if (id == 0x00) {
                     plugin.debugLog("Disconnect login: " + readJavaString(pkt));
                     return false;
@@ -291,10 +294,7 @@ public class RealmGate {
             } else {
                 // Estado CONFIGURATION
                 if (id == 0x02) {
-                    // Servidor ha terminado su configuración
                     plugin.debugLog("FinishConfiguration recibido del servidor");
-                    sendAcknowledgeFinishConfiguration(out, compressionThreshold);
-                    plugin.debugLog("FinishConfiguration enviado al servidor");
                     return true;
                 } else if (id == 0x00) {
                     plugin.debugLog("Disconnect config: " + readJavaString(pkt));
@@ -317,7 +317,6 @@ public class RealmGate {
                     sendCompressed(out, packsContent.toByteArray(), compressionThreshold);
                     plugin.debugLog("KnownPacks enviado");
                 } else {
-                    // Otros paquetes de configuración (ej: 0x0C, 0x0E, etc.) los ignoramos
                     plugin.debugLog("Config paquete ignorado: 0x" + String.format("%02X", id));
                 }
             }
