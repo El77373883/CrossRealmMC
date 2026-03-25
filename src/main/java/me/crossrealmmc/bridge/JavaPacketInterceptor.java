@@ -8,6 +8,7 @@ import com.comphenix.protocol.events.PacketEvent;
 import me.crossrealmmc.CrossRealmMC;
 import me.crossrealmmc.raknet.RakNetHandler;
 import org.bukkit.entity.Player;
+import org.bukkit.plugin.Plugin;
 
 import java.net.InetSocketAddress;
 import java.util.HashMap;
@@ -38,18 +39,20 @@ public class JavaPacketInterceptor {
     }
 
     public void start() {
-        protocolManager.addPacketListener(new PacketAdapter(plugin, PacketType.Play.Server.MAP_CHUNK) {
+        Plugin pluginRef = plugin; // Para usar en el PacketAdapter
+
+        protocolManager.addPacketListener(new PacketAdapter(pluginRef, PacketType.Play.Server.MAP_CHUNK) {
             @Override
             public void onPacketSending(PacketEvent event) {
                 Player player = event.getPlayer();
                 if (bedrockAddresses.containsKey(player.getUniqueId())) {
                     plugin.debugLog("Chunk para Bedrock: " + player.getName());
-                    // Aquí irá la traducción a chunk de Bedrock
+                    // Aquí irá la traducción a LevelChunkPacket de Bedrock
                 }
             }
         });
 
-        protocolManager.addPacketListener(new PacketAdapter(plugin, PacketType.Play.Server.CHAT) {
+        protocolManager.addPacketListener(new PacketAdapter(pluginRef, PacketType.Play.Server.CHAT) {
             @Override
             public void onPacketSending(PacketEvent event) {
                 Player player = event.getPlayer();
