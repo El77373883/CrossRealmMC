@@ -25,6 +25,14 @@ public class ConfigManager {
         this.config = plugin.getConfig();
         this.language = config.getString("language", "es");
 
+        // Log para ver qué valores se cargan
+        plugin.getLogger().info("===== CONFIGURACIÓN CARGADA =====");
+        plugin.getLogger().info("remote.address = " + config.getString("remote.address", "NO_ENCONTRADA"));
+        plugin.getLogger().info("remote.port = " + config.getInt("remote.port", 0));
+        plugin.getLogger().info("bedrock.address = " + config.getString("bedrock.address", "NO_ENCONTRADA"));
+        plugin.getLogger().info("bedrock.port = " + config.getInt("bedrock.port", 0));
+        plugin.getLogger().info("==================================");
+
         File messagesFile = new File(plugin.getDataFolder(), "messages.yml");
         if (!messagesFile.exists()) plugin.saveResource("messages.yml", false);
         this.messages = YamlConfiguration.loadConfiguration(messagesFile);
@@ -59,14 +67,7 @@ public class ConfigManager {
         return msg;
     }
 
-    // Bedrock server (para escuchar conexiones)
-    public String getBedrockAddress() {
-        return config.getString("bedrock.address", "0.0.0.0");
-    }
-    
-    public int getBedrockPort() {
-        return config.getInt("bedrock.port", 19132);
-    }
+    // ==================== NUEVA ESTRUCTURA (address + port) ====================
     
     // Remote Java server (al que conectar)
     public String getRemoteAddress() {
@@ -81,10 +82,39 @@ public class ConfigManager {
         return config.getInt("remote.port", 25565);
     }
     
-    // Métodos legacy (para compatibilidad con código existente)
-    public String getJavaServerHost() { return getRemoteAddress(); }
-    public int getJavaServerPort() { return getRemotePort(); }
-    public String getBedrockIp() { return getBedrockAddress(); }
+    // Bedrock server (para escuchar conexiones)
+    public String getBedrockAddress() {
+        return config.getString("bedrock.address", "0.0.0.0");
+    }
+    
+    public int getBedrockPort() {
+        return config.getInt("bedrock.port", 19132);
+    }
+    
+    // ==================== MÉTODOS LEGACY (compatibilidad) ====================
+    
+    // Para CrossRealmMC.java
+    public String getJavaIp() { 
+        return getRemoteAddress(); 
+    }
+    public int getJavaPort() { 
+        return getRemotePort(); 
+    }
+    
+    // Para RealmGate.java
+    public String getJavaServerHost() { 
+        return getRemoteAddress(); 
+    }
+    public int getJavaServerPort() { 
+        return getRemotePort(); 
+    }
+    
+    // Para otros archivos que usen getBedrockIp()
+    public String getBedrockIp() { 
+        return getBedrockAddress(); 
+    }
+    
+    // ==================== OTRAS CONFIGURACIONES ====================
     
     public String getMotdLine1() { return config.getString("server.motd-line1", "CrossRealmMC"); }
     public String getMotdLine2() { return config.getString("server.motd-line2", "Java + Bedrock"); }
