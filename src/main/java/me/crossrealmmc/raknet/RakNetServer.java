@@ -23,7 +23,8 @@ public class RakNetServer {
     }
 
     public void start() {
-        String host = plugin.getConfigManager().getBedrockIp();
+        // Cambiado de getBedrockIp() a getBedrockAddress()
+        String host = plugin.getConfigManager().getBedrockAddress();
         int port = plugin.getConfigManager().getBedrockPort();
         try {
             group = new NioEventLoopGroup(4, new DefaultThreadFactory("RakNet"));
