@@ -72,7 +72,9 @@ public class ConfigManager {
     // Remote Java server (al que conectar)
     public String getRemoteAddress() {
         String addr = config.getString("remote.address", "127.0.0.1");
+        plugin.getLogger().info("DEBUG: getRemoteAddress() leyó = " + addr);
         if (addr.equalsIgnoreCase("auto")) {
+            plugin.getLogger().info("DEBUG: 'auto' detectado, usando 127.0.0.1");
             return "127.0.0.1";
         }
         return addr;
@@ -93,26 +95,11 @@ public class ConfigManager {
     
     // ==================== MÉTODOS LEGACY (compatibilidad) ====================
     
-    // Para CrossRealmMC.java
-    public String getJavaIp() { 
-        return getRemoteAddress(); 
-    }
-    public int getJavaPort() { 
-        return getRemotePort(); 
-    }
-    
-    // Para RealmGate.java
-    public String getJavaServerHost() { 
-        return getRemoteAddress(); 
-    }
-    public int getJavaServerPort() { 
-        return getRemotePort(); 
-    }
-    
-    // Para otros archivos que usen getBedrockIp()
-    public String getBedrockIp() { 
-        return getBedrockAddress(); 
-    }
+    public String getJavaIp() { return getRemoteAddress(); }
+    public int getJavaPort() { return getRemotePort(); }
+    public String getJavaServerHost() { return getRemoteAddress(); }
+    public int getJavaServerPort() { return getRemotePort(); }
+    public String getBedrockIp() { return getBedrockAddress(); }
     
     // ==================== OTRAS CONFIGURACIONES ====================
     
