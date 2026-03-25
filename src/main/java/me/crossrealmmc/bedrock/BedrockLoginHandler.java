@@ -149,19 +149,26 @@ public class BedrockLoginHandler {
                         plugin.debugLog("[JWT] Payload: " + payload);
                         
                         JsonObject payloadObj = JsonParser.parseString(payload).getAsJsonObject();
+                        
+                        // Buscar el nombre en diferentes campos
                         if (payloadObj.has("extraData")) {
                             JsonObject extraData = payloadObj.getAsJsonObject("extraData");
                             if (extraData.has("displayName")) {
                                 username = extraData.get("displayName").getAsString();
-                                plugin.debugLog("[JWT] Nombre encontrado: " + username);
-                            }
-                            if (extraData.has("XUID")) {
-                                xuid = extraData.get("XUID").getAsString();
-                                plugin.debugLog("[JWT] XUID encontrado: " + xuid);
+                                plugin.debugLog("[JWT] Nombre encontrado en extraData: " + username);
                             }
                         } else if (payloadObj.has("displayName")) {
                             username = payloadObj.get("displayName").getAsString();
-                            plugin.debugLog("[JWT] Nombre encontrado directamente: " + username);
+                            plugin.debugLog("[JWT] Nombre encontrado en displayName: " + username);
+                        } else if (payloadObj.has("xname")) {
+                            username = payloadObj.get("xname").getAsString();
+                            plugin.debugLog("[JWT] Nombre encontrado en xname: " + username);
+                        }
+                        
+                        // Buscar XUID si está presente
+                        if (payloadObj.has("xid")) {
+                            xuid = payloadObj.get("xid").getAsString();
+                            plugin.debugLog("[JWT] XUID encontrado: " + xuid);
                         }
                     }
                 }
