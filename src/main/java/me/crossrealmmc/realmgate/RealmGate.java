@@ -226,6 +226,7 @@ public class RealmGate {
         out.flush();
     }
 
+    // ==================== MÉTODO CORREGIDO ====================
     private boolean waitForLoginSuccess(DataInputStream in, DataOutputStream out, BedrockSession session) throws IOException {
         long timeout = System.currentTimeMillis() + 15000;
         int compressionThreshold = -1;
@@ -276,11 +277,13 @@ public class RealmGate {
                     session.setUsername(name);
                     plugin.debugLog("LoginSuccess: " + name);
                     sendLoginAcknowledged(out);
-                    // Enviamos ClientSettings (NO FinishConfiguration)
+                    // Enviamos ClientSettings
                     sendClientSettings(out, compressionThreshold);
                     plugin.debugLog("ClientSettings enviado");
+                    // ✅ Enviamos FinishConfiguration AHORA (después de ClientSettings)
+                    sendAcknowledgeFinishConfiguration(out, compressionThreshold);
+                    plugin.debugLog("FinishConfiguration enviado al servidor");
                     inConfigState = true;
-                    // ✅ ESPERAMOS al servidor, NO enviamos FinishConfiguration aquí
                 } else if (id == 0x00) {
                     plugin.debugLog("Disconnect login: " + readJavaString(pkt));
                     return false;
@@ -293,9 +296,6 @@ public class RealmGate {
                 if (id == 0x02) {
                     // El servidor ha terminado su configuración
                     plugin.debugLog("FinishConfiguration recibido del servidor");
-                    // Ahora enviamos nuestro FinishConfiguration
-                    sendAcknowledgeFinishConfiguration(out, compressionThreshold);
-                    plugin.debugLog("FinishConfiguration enviado al servidor");
                     return true;
                 } else if (id == 0x00) {
                     plugin.debugLog("Disconnect config: " + readJavaString(pkt));
@@ -325,6 +325,7 @@ public class RealmGate {
         plugin.debugLog("Timeout esperando login/config");
         return false;
     }
+    // ==================== FIN DEL MÉTODO CORREGIDO ====================
 
     private byte[] decompress(byte[] data, int expectedSize) throws IOException {
         try {
