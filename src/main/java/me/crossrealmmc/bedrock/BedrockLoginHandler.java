@@ -88,7 +88,8 @@ public class BedrockLoginHandler {
                 plugin.debugLog("[JWT] AuthenticationType: " + authType);
                 
                 // Leer Certificate (string con JSON)
-                int certLength = readVarInt(buf);
+                int certLength = PacketTranslator.readVarInt(buf);
+                plugin.debugLog("[JWT] Certificate length: " + certLength);
                 if (certLength > 0 && certLength < 65536) {
                     byte[] certBytes = new byte[certLength];
                     buf.readBytes(certBytes);
@@ -97,7 +98,7 @@ public class BedrockLoginHandler {
                 }
                 
                 // Leer Token (string con el JWT)
-                int tokenLength = readVarInt(buf);
+                int tokenLength = PacketTranslator.readVarInt(buf);
                 plugin.debugLog("[JWT] Token length: " + tokenLength);
                 
                 if (tokenLength > 0 && tokenLength < 65536) {
