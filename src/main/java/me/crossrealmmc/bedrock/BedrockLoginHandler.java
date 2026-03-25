@@ -18,6 +18,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.google.gson.stream.JsonReader;
 
 public class BedrockLoginHandler {
 
@@ -125,10 +126,10 @@ public class BedrockLoginHandler {
                 String jsonData = new String(jsonBytes, jsonStart, remaining - jsonStart, StandardCharsets.UTF_8);
                 plugin.debugLog("[JWT] JSON recibido: " + (jsonData.length() > 500 ? jsonData.substring(0, 500) : jsonData));
                 
-                // Parsear el JSON con lenient true para aceptar saltos de línea
-                JsonParser parser = new JsonParser();
-                parser.setLenient(true);
-                JsonObject root = parser.parse(jsonData).getAsJsonObject();
+                // Parsear el JSON con lenient true usando JsonReader
+                JsonReader reader = new JsonReader(new java.io.StringReader(jsonData));
+                reader.setLenient(true);
+                JsonObject root = JsonParser.parseReader(reader).getAsJsonObject();
                 
                 if (root.has("AuthenticationType")) {
                     plugin.debugLog("[JWT] AuthenticationType: " + root.get("AuthenticationType").getAsInt());
