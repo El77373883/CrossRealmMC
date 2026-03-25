@@ -46,9 +46,15 @@ public class VirtualPlayerCreator {
             );
             Object connection = packetListenerConstructor.newInstance(minecraftServer, null, serverPlayer);
             
-            // Asignar la conexión al ServerPlayer
-            Method setConnection = serverPlayerClass.getMethod("a", packetListenerClass);
-            setConnection.invoke(serverPlayer, connection);
+            // Asignar la conexión al ServerPlayer (método "a" o "setConnection")
+            try {
+                Method setConnection = serverPlayerClass.getMethod("a", packetListenerClass);
+                setConnection.invoke(serverPlayer, connection);
+            } catch (NoSuchMethodException e) {
+                // Intentar con otro nombre de método
+                Method setConnection = serverPlayerClass.getMethod("setConnection", packetListenerClass);
+                setConnection.invoke(serverPlayer, connection);
+            }
             
             // Añadir al servidor
             Method addPlayer = craftServer.getClass().getMethod("addPlayer", serverPlayerClass.getSuperclass());
