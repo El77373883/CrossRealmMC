@@ -1,5 +1,6 @@
 package me.crossrealmmc.realmgate;
 
+import io.netty.buffer.ByteBuf;
 import me.crossrealmmc.CrossRealmMC;
 import me.crossrealmmc.bedrock.BedrockPlayer;
 import me.crossrealmmc.detection.PlayerDetector;
@@ -160,6 +161,10 @@ public class RealmGate {
                 plugin.debugLog("✘ Error al conectar Java para "
                         + session.getUsername() + ": " + e.getMessage());
                 removeSession(ip);
+            } finally {
+                if (socket != null && !javaConnections.containsKey(ip)) {
+                    try { socket.close(); } catch (IOException ignored) {}
+                }
             }
         });
     }
@@ -228,7 +233,7 @@ public class RealmGate {
         ByteArrayOutputStream buf  = new ByteArrayOutputStream();
         DataOutputStream      data = new DataOutputStream(buf);
         writeVarInt(data, 0x00);
-        writeVarInt(data, 774); // ✅ Protocolo correcto para Paper 1.21.11
+        writeVarInt(data, 774); // Protocolo correcto para Paper 1.21.11
         writeJavaString(data, host);
         data.writeShort(port);
         writeVarInt(data, 2);
