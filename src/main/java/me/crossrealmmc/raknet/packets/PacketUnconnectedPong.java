@@ -10,9 +10,6 @@ public class PacketUnconnectedPong {
     private final CrossRealmMC plugin;
     private final long pingTime;
 
-    private static final int BEDROCK_PROTOCOL = 944;      // 26.10
-    private static final String BEDROCK_VERSION = "26.10";
-
     public PacketUnconnectedPong(CrossRealmMC plugin, long pingTime) {
         this.plugin = plugin;
         this.pingTime = pingTime;
@@ -29,19 +26,21 @@ public class PacketUnconnectedPong {
         String motd2 = color(plugin.getConfigManager().getMotdLine2());
         int online = Bukkit.getOnlinePlayers().size();
         int max = Bukkit.getMaxPlayers();
+        int port = plugin.getConfigManager().getBedrockPort();
 
-        String serverName = "MCPE" + ";"
-                + motd1 + ";"
-                + BEDROCK_PROTOCOL + ";"
-                + BEDROCK_VERSION + ";"
-                + online + ";"
-                + max + ";"
-                + RakNetServer.SERVER_GUID + ";"
-                + motd2 + ";"
-                + "Creative" + ";"
-                + "1" + ";"
-                + plugin.getConfigManager().getBedrockPort() + ";"
-                + "19133" + ";"
+        // Formato MCPE para Bedrock
+        String serverName = "MCPE" + ";" 
+                + motd1 + ";" 
+                + "1048" + ";"          // Protocolo 1.21.60 (acepta cualquier versión)
+                + "1.21.60" + ";"       // Versión (puede ser cualquier cosa)
+                + online + ";" 
+                + max + ";" 
+                + RakNetServer.SERVER_GUID + ";" 
+                + motd2 + ";" 
+                + "Survival" + ";" 
+                + "1" + ";" 
+                + port + ";" 
+                + "19133" + ";" 
                 + "1";
 
         buf.writeByte(0x1C);
