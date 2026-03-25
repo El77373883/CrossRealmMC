@@ -11,7 +11,6 @@ import me.crossrealmmc.bedrock.BedrockPlayer;
 import me.crossrealmmc.bedrock.BedrockPlayerRegistry;
 import me.crossrealmmc.bedrock.PacketTranslator;
 import me.crossrealmmc.raknet.packets.*;
-import org.bukkit.Bukkit;
 
 import java.io.ByteArrayOutputStream;
 import java.net.InetSocketAddress;
@@ -405,11 +404,9 @@ public class RakNetHandler extends SimpleChannelInboundHandler<DatagramPacket> {
         if (player != null) {
             if (player.getUuid() != null) {
                 plugin.getPlayerDetector().unregisterPlayer(player.getUuid());
-                // Eliminar del interceptor
-                org.bukkit.entity.Player javaPlayer = Bukkit.getPlayer(player.getUuid());
-                if (javaPlayer != null) {
-                    plugin.getJavaPacketInterceptor().unregisterBedrockPlayer(javaPlayer);
-                }
+            }
+            if (player.getUsername() != null) {
+                plugin.getJavaPacketInterceptor().unregisterBedrockPlayer(player.getUsername());
             }
             plugin.getConnectionLogger().logDisconnect(
                 player.getUsername() != null ? player.getUsername() : "Unknown",
