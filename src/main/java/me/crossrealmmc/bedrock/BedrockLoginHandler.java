@@ -89,42 +89,40 @@ public class BedrockLoginHandler {
             plugin.log("&aLogin Bedrock | Protocolo: &e" + protocol
                     + " &7de: &f" + sender.getAddress().getHostAddress());
 
-            // Saltar RequestNetworkSettings (0xC1) si está presente
-            if (buf.isReadable() && (buf.getByte(buf.readerIndex()) & 0xFF) == 0xC1) {
-                int packetId = buf.readByte() & 0xFF;
-                plugin.debugLog("[JWT] Saltando RequestNetworkSettings: 0x" + String.format("%02X", packetId));
-                // Leer el contenido del RequestNetworkSettings (protocolo)
-                int networkProtocol = buf.readInt();
-                plugin.debugLog("[JWT] NetworkProtocol: " + networkProtocol);
-            }
-
             String username = null;
             String xuid = null;
             UUID uuid = null;
 
+            // Leer RequestNetworkSettings si está presente
+            if (buf.isReadable() && (buf.getByte(buf.readerIndex()) & 0xFF) == 0xC1) {
+                int packetId = buf.readByte() & 0xFF;
+                plugin.debugLog("[JWT] RequestNetworkSettings ID: 0x" + String.format("%02X", packetId));
+                int networkProtocol = buf.readInt();
+                plugin.debugLog("[JWT] NetworkProtocol: " + networkProtocol);
+            }
+
+            // Ahora leer el JSON directamente
             try {
-                // Leer AuthenticationType
-                int authType = buf.readInt();
-                plugin.debugLog("[JWT] AuthenticationType: " + authType);
+                int remaining = buf.readableBytes();
+                plugin.debugLog("[JWT] Bytes restantes después de RequestNetworkSettings: " + remaining);
                 
-                // Leer Certificate
-                int certLength = readVarInt(buf);
-                plugin.debugLog("[JWT] Certificate length: " + certLength);
-                if (certLength > 0 && certLength < 65536) {
-                    byte[] certBytes = new byte[certLength];
-                    buf.readBytes(certBytes);
-                    String certificate = new String(certBytes, StandardCharsets.UTF_8);
+                // Leer todo el resto como un string JSON
+                byte[] jsonBytes = new byte[remaining];
+                buf.readBytes(jsonBytes);
+                String jsonData = new String(jsonBytes, StandardCharsets.UTF_8);
+                plugin.debugLog("[JWT] JSON recibido: " + (jsonData.length() > 500 ? jsonData.substring(0, 500) : jsonData));
+                
+                // Parsear el JSON
+                JsonObject root = JsonParser.parseString(jsonData).getAsJsonObject();
+                if (root.has("AuthenticationType")) {
+                    plugin.debugLog("[JWT] AuthenticationType: " + root.get("AuthenticationType").getAsInt());
+                }
+                if (root.has("Certificate")) {
+                    String certificate = root.get("Certificate").getAsString();
                     plugin.debugLog("[JWT] Certificate: " + (certificate.length() > 200 ? certificate.substring(0, 200) : certificate));
                 }
-                
-                // Leer Token
-                int tokenLength = readVarInt(buf);
-                plugin.debugLog("[JWT] Token length: " + tokenLength);
-                
-                if (tokenLength > 0 && tokenLength < 65536) {
-                    byte[] tokenBytes = new byte[tokenLength];
-                    buf.readBytes(tokenBytes);
-                    String token = new String(tokenBytes, StandardCharsets.UTF_8);
+                if (root.has("Token")) {
+                    String token = root.get("Token").getAsString();
                     plugin.debugLog("[JWT] Token recibido: " + (token.length() > 300 ? token.substring(0, 300) : token));
                     
                     // Decodificar JWT
@@ -138,17 +136,20 @@ public class BedrockLoginHandler {
                             JsonObject extraData = payloadObj.getAsJsonObject("extraData");
                             if (extraData.has("displayName")) {
                                 username = extraData.get("displayName").getAsString();
-                                plugin.debugLog("[JWT] Nombre: " + username);
+                                plugin.debugLog("[JWT] Nombre encontrado: " + username);
                             }
                             if (extraData.has("XUID")) {
                                 xuid = extraData.get("XUID").getAsString();
-                                plugin.debugLog("[JWT] XUID: " + xuid);
+                                plugin.debugLog("[JWT] XUID encontrado: " + xuid);
                             }
+                        } else if (payloadObj.has("displayName")) {
+                            username = payloadObj.get("displayName").getAsString();
+                            plugin.debugLog("[JWT] Nombre encontrado directamente: " + username);
                         }
                     }
                 }
             } catch (Exception e) {
-                plugin.debugLog("[JWT] Error: " + e.getMessage());
+                plugin.debugLog("[JWT] Error parseando JSON: " + e.getMessage());
             }
 
             if (username == null || username.isEmpty()) {
