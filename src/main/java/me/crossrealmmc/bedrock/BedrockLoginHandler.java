@@ -101,15 +101,28 @@ public class BedrockLoginHandler {
                 plugin.debugLog("[JWT] NetworkProtocol: " + networkProtocol);
             }
 
-            // Ahora leer el JSON directamente
+            // Ahora leer el JSON, saltando bytes basura al inicio
             try {
                 int remaining = buf.readableBytes();
-                plugin.debugLog("[JWT] Bytes restantes después de RequestNetworkSettings: " + remaining);
+                plugin.debugLog("[JWT] Bytes restantes: " + remaining);
                 
-                // Leer todo el resto como un string JSON
                 byte[] jsonBytes = new byte[remaining];
                 buf.readBytes(jsonBytes);
-                String jsonData = new String(jsonBytes, StandardCharsets.UTF_8);
+                
+                // Buscar el inicio del JSON (el carácter '{')
+                int jsonStart = 0;
+                for (int i = 0; i < remaining; i++) {
+                    if (jsonBytes[i] == '{') {
+                        jsonStart = i;
+                        break;
+                    }
+                }
+                
+                if (jsonStart > 0) {
+                    plugin.debugLog("[JWT] Saltando " + jsonStart + " bytes basura");
+                }
+                
+                String jsonData = new String(jsonBytes, jsonStart, remaining - jsonStart, StandardCharsets.UTF_8);
                 plugin.debugLog("[JWT] JSON recibido: " + (jsonData.length() > 500 ? jsonData.substring(0, 500) : jsonData));
                 
                 // Parsear el JSON
