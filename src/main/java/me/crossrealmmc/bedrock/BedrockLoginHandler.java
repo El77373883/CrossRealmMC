@@ -6,8 +6,8 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.socket.DatagramPacket;
 import me.crossrealmmc.CrossRealmMC;
 import me.crossrealmmc.detection.PlayerDetector;
-import me.crossrealmmc.realmgate.BedrockSession;
 import org.bukkit.Bukkit;
+import org.bukkit.entity.Player;
 
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
@@ -74,87 +74,50 @@ public class BedrockLoginHandler {
             plugin.log("&aLogin Bedrock | Protocolo: &e" + protocol
                     + " &7de: &f" + sender.getAddress().getHostAddress());
 
-            if (!plugin.getConfigManager().isBedrockOnlineMode()) {
-                // Modo offline: extraer nombre real del JWT si existe
-                String username = null;
-                String xuid = null;
-                try {
-                    int chainLength = buf.readIntLE();
-                    if (chainLength > 0 && chainLength <= 65536) {
-                        byte[] chainBytes = new byte[chainLength];
-                        buf.readBytes(chainBytes);
-                        String jwtChain = new String(chainBytes, StandardCharsets.UTF_8);
-                        XboxAuthManager.PlayerInfo info = xboxAuth.extractFromJwt(jwtChain);
-                        if (info.success && info.username != null && !info.username.isEmpty()) {
-                            username = info.username;
-                            xuid = info.xuid;
-                        }
+            String username = null;
+            String xuid = null;
+            UUID uuid = null;
+
+            try {
+                int chainLength = buf.readIntLE();
+                if (chainLength > 0 && chainLength <= 65536) {
+                    byte[] chainBytes = new byte[chainLength];
+                    buf.readBytes(chainBytes);
+                    String jwtChain = new String(chainBytes, StandardCharsets.UTF_8);
+                    XboxAuthManager.PlayerInfo info = xboxAuth.extractFromJwt(jwtChain);
+                    if (info.success && info.username != null && !info.username.isEmpty()) {
+                        username = info.username;
+                        xuid = info.xuid;
                     }
-                } catch (Exception e) {
-                    plugin.debugLog("Error extrayendo JWT en modo offline: " + e.getMessage());
                 }
-
-                if (username == null || username.isEmpty()) {
-                    username = "Bedrock_" + (int)(Math.random() * 99999);
-                }
-
-                String prefixedName = plugin.getConfigManager().getBedrockPrefix() + username;
-                UUID uuid;
-                if (xuid != null && !xuid.isEmpty()) {
-                    uuid = UUID.nameUUIDFromBytes(("bedrock:" + xuid).getBytes(StandardCharsets.UTF_8));
-                } else {
-                    uuid = UUID.nameUUIDFromBytes(("bedrock_offline:" + username).getBytes(StandardCharsets.UTF_8));
-                }
-
-                player.setUsername(prefixedName);
-                player.setUuid(uuid);
-                player.setState(BedrockPlayer.State.LOGIN);
-                plugin.log("&aJugador offline aceptado: &e" + prefixedName);
-                plugin.getPlayerDetector().registerPlayer(uuid, PlayerDetector.PlayerType.BEDROCK, "26.10");
-
-                BedrockSession bedrockSession = new BedrockSession(sender, "26.10");
-                bedrockSession.setUsername(prefixedName);
-                bedrockSession.setUuid(uuid);
-                bedrockSession.setAuthenticated(true);
-                plugin.getRealmGate().registerAuthenticatedSession(
-                        sender.getAddress().getHostAddress(), bedrockSession);
-
-                sendPlayStatus(ctx, sender, STATUS_LOGIN_SUCCESS);
-                sendResourcePacksInfo(ctx, sender);
-                sendStartGame(ctx, sender, player);
-                return;
+            } catch (Exception e) {
+                plugin.debugLog("Error extrayendo JWT: " + e.getMessage());
             }
 
-            // Modo online (autenticación completa)
-            if (!buf.isReadable(4)) { sendPlayStatus(ctx, sender, STATUS_FAILED_CLIENT); return; }
-            int chainLength = buf.readIntLE();
-            if (chainLength <= 0 || chainLength > 65536) { sendPlayStatus(ctx, sender, STATUS_FAILED_CLIENT); return; }
-            byte[] chainBytes = new byte[chainLength];
-            buf.readBytes(chainBytes);
-            String jwtChain = new String(chainBytes, StandardCharsets.UTF_8);
-
-            XboxAuthManager.AuthResult auth = xboxAuth.authenticate(jwtChain, true);
-            if (!auth.authenticated) {
-                plugin.log("&cAuth fallida: &f" + auth.errorMessage);
-                sendPlayStatus(ctx, sender, STATUS_FAILED_CLIENT);
-                return;
+            if (username == null || username.isEmpty()) {
+                username = "Bedrock_" + (int)(Math.random() * 99999);
             }
 
-            String prefixedName = plugin.getConfigManager().getBedrockPrefix() + auth.username;
+            String prefixedName = plugin.getConfigManager().getBedrockPrefix() + username;
+            
+            if (xuid != null && !xuid.isEmpty()) {
+                uuid = UUID.nameUUIDFromBytes(("bedrock:" + xuid).getBytes(StandardCharsets.UTF_8));
+            } else {
+                uuid = UUID.nameUUIDFromBytes(("bedrock_offline:" + username).getBytes(StandardCharsets.UTF_8));
+            }
+
             player.setUsername(prefixedName);
-            player.setXuid(auth.xuid);
-            player.setUuid(auth.uuid);
+            player.setUuid(uuid);
             player.setState(BedrockPlayer.State.LOGIN);
-            plugin.log("&aJugador autenticado: &e" + prefixedName);
-            plugin.getPlayerDetector().registerPlayer(auth.uuid, PlayerDetector.PlayerType.BEDROCK, "26.10");
+            plugin.log("&aJugador aceptado: &e" + prefixedName);
+            plugin.getPlayerDetector().registerPlayer(uuid, PlayerDetector.PlayerType.BEDROCK, "26.10");
 
-            BedrockSession bedrockSession = new BedrockSession(sender, "26.10");
-            bedrockSession.setUsername(prefixedName);
-            bedrockSession.setXuid(auth.xuid);
-            bedrockSession.setUuid(auth.uuid);
-            bedrockSession.setAuthenticated(true);
-            plugin.getRealmGate().registerAuthenticatedSession(
-                    sender.getAddress().getHostAddress(), bedrockSession);
+            // Registrar en el interceptor si el jugador ya existe en Java
+            Player javaPlayer = Bukkit.getPlayer(uuid);
+            if (javaPlayer != null) {
+                plugin.getJavaPacketInterceptor().registerBedrockPlayer(javaPlayer, sender);
+                plugin.debugLog("Jugador registrado en interceptor: " + prefixedName);
+            }
 
             sendPlayStatus(ctx, sender, STATUS_LOGIN_SUCCESS);
             sendResourcePacksInfo(ctx, sender);
@@ -314,10 +277,6 @@ public class BedrockLoginHandler {
                 sender.getAddress().getHostAddress(),
                 "26.10"
             );
-
-            String ip = sender.getAddress().getHostAddress();
-            plugin.debugLog("Iniciando bridge Java para: " + player.getUsername());
-            plugin.getRealmGate().connectToJavaAfterSpawn(ip, player);
 
             Bukkit.getScheduler().runTask(plugin, () -> {
                 String joinMsg = plugin.getConfigManager().getMessage(
