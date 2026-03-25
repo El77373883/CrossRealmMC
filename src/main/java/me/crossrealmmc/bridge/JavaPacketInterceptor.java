@@ -11,16 +11,15 @@ import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 
 import java.net.InetSocketAddress;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.UUID;
+import java.util.HashSet;
+import java.util.Set;
 
 public class JavaPacketInterceptor {
 
     private final CrossRealmMC plugin;
     private final ProtocolManager protocolManager;
     private final RakNetHandler rakNetHandler;
-    private final Map<UUID, InetSocketAddress> bedrockAddresses = new HashMap<>();
+    private final Set<String> bedrockPlayers = new HashSet<>();
 
     public JavaPacketInterceptor(CrossRealmMC plugin, RakNetHandler rakNetHandler) {
         this.plugin = plugin;
@@ -28,28 +27,25 @@ public class JavaPacketInterceptor {
         this.protocolManager = ProtocolLibrary.getProtocolManager();
     }
 
-    public void registerBedrockPlayer(Player player, InetSocketAddress address) {
-        bedrockAddresses.put(player.getUniqueId(), address);
-        plugin.debugLog("Jugador Bedrock registrado: " + player.getName());
+    public void registerBedrockPlayer(String playerName, InetSocketAddress address) {
+        bedrockPlayers.add(playerName);
+        plugin.debugLog("Jugador Bedrock registrado: " + playerName);
     }
 
-    public void unregisterBedrockPlayer(Player player) {
-        bedrockAddresses.remove(player.getUniqueId());
-        plugin.debugLog("Jugador Bedrock desregistrado: " + player.getName());
+    public void unregisterBedrockPlayer(String playerName) {
+        bedrockPlayers.remove(playerName);
+        plugin.debugLog("Jugador Bedrock desregistrado: " + playerName);
     }
 
     public void start() {
-        // Creamos una referencia final al plugin con el tipo correcto
         final CrossRealmMC pluginInstance = this.plugin;
-        // Creamos otra referencia como Plugin para pasarla al PacketAdapter
         Plugin pluginRef = this.plugin;
 
         protocolManager.addPacketListener(new PacketAdapter(pluginRef, PacketType.Play.Server.MAP_CHUNK) {
             @Override
             public void onPacketSending(PacketEvent event) {
                 Player player = event.getPlayer();
-                if (bedrockAddresses.containsKey(player.getUniqueId())) {
-                    // ✅ Usamos pluginInstance, que SÍ tiene el método debugLog
+                if (bedrockPlayers.contains(player.getName())) {
                     pluginInstance.debugLog("Chunk para Bedrock: " + player.getName());
                     // Aquí irá la traducción a LevelChunkPacket de Bedrock
                 }
@@ -60,9 +56,8 @@ public class JavaPacketInterceptor {
             @Override
             public void onPacketSending(PacketEvent event) {
                 Player player = event.getPlayer();
-                if (bedrockAddresses.containsKey(player.getUniqueId())) {
+                if (bedrockPlayers.contains(player.getName())) {
                     String message = event.getPacket().getStrings().read(0);
-                    // ✅ Usamos pluginInstance, que SÍ tiene el método debugLog
                     pluginInstance.debugLog("Chat para Bedrock: " + message);
                     // Aquí irá la traducción a TextPacket de Bedrock
                 }
