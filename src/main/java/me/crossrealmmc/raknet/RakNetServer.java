@@ -16,6 +16,7 @@ public class RakNetServer {
     private final CrossRealmMC plugin;
     private Channel channel;
     private NioEventLoopGroup group;
+    private RakNetHandler handler;
     private boolean running = false;
 
     public RakNetServer(CrossRealmMC plugin) {
@@ -23,7 +24,6 @@ public class RakNetServer {
     }
 
     public void start() {
-        // Cambiado de getBedrockIp() a getBedrockAddress()
         String host = plugin.getConfigManager().getBedrockAddress();
         int port = plugin.getConfigManager().getBedrockPort();
         try {
@@ -38,7 +38,8 @@ public class RakNetServer {
                 .handler(new ChannelInitializer<NioDatagramChannel>() {
                     @Override
                     protected void initChannel(NioDatagramChannel ch) {
-                        ch.pipeline().addLast(new RakNetHandler(plugin));
+                        handler = new RakNetHandler(plugin);
+                        ch.pipeline().addLast(handler);
                     }
                 });
 
@@ -60,4 +61,5 @@ public class RakNetServer {
     }
 
     public boolean isRunning() { return running; }
+    public RakNetHandler getHandler() { return handler; }
 }
