@@ -45,11 +45,11 @@
         </repository>
     </repositories>
     <dependencies>
-        <!-- Paper API (incluye NMS) -->
+        <!-- Paper API (versión compatible con Java 17) -->
         <dependency>
             <groupId>io.papermc.paper</groupId>
             <artifactId>paper-api</artifactId>
-            <version>1.21.3-R0.1-SNAPSHOT</version>
+            <version>1.21.1-R0.1-SNAPSHOT</version>
             <scope>provided</scope>
         </dependency>
         <dependency>
