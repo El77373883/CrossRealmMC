@@ -79,27 +79,58 @@ public class BedrockLoginHandler {
             plugin.log("&aLogin Bedrock | Protocolo: &e" + protocol
                     + " &7de: &f" + sender.getAddress().getHostAddress());
 
+            // ========== MOSTRAR BYTES DEL BUFFER ==========
+            plugin.debugLog("[JWT] Posición actual del buffer: " + buf.readerIndex());
+            int remaining = buf.readableBytes();
+            plugin.debugLog("[JWT] Bytes restantes: " + remaining);
+
+            if (remaining > 0) {
+                byte[] sample = new byte[Math.min(128, remaining)];
+                buf.getBytes(buf.readerIndex(), sample);
+                StringBuilder hex = new StringBuilder();
+                for (int i = 0; i < sample.length; i++) {
+                    hex.append(String.format("%02X ", sample[i]));
+                    if ((i + 1) % 16 == 0) hex.append("\n");
+                }
+                plugin.debugLog("[JWT] Primeros bytes:\n" + hex.toString());
+                
+                // Intentar leer el JWT directamente como string
+                String asString = new String(sample, StandardCharsets.UTF_8);
+                plugin.debugLog("[JWT] Como texto: " + (asString.length() > 200 ? asString.substring(0, 200) : asString));
+            }
+            // ==============================================
+
             String username = null;
             String xuid = null;
             UUID uuid = null;
 
             try {
-                // Leer la longitud del chain (usando readInt, no readIntLE)
-                int chainLength = buf.readInt();
-                plugin.debugLog("[JWT] Chain length: " + chainLength);
+                // Intentar leer la longitud del chain (probando diferentes formas)
+                int chainLength = 0;
+                try {
+                    // Probar con readInt (big endian)
+                    chainLength = buf.readInt();
+                    plugin.debugLog("[JWT] Chain length (readInt): " + chainLength);
+                } catch (Exception e) {
+                    plugin.debugLog("[JWT] Error con readInt: " + e.getMessage());
+                }
+                
+                if (chainLength <= 0 || chainLength > 65536) {
+                    // Probar con readIntLE (little endian)
+                    buf.readerIndex(buf.readerIndex() - 4); // Volver atrás
+                    chainLength = buf.readIntLE();
+                    plugin.debugLog("[JWT] Chain length (readIntLE): " + chainLength);
+                }
                 
                 if (chainLength > 0 && chainLength < 65536) {
                     byte[] chainBytes = new byte[chainLength];
                     buf.readBytes(chainBytes);
                     String jwtChain = new String(chainBytes, StandardCharsets.UTF_8);
+                    plugin.debugLog("[JWT] JWT recibido (primeros 500): " + 
+                        (jwtChain.length() > 500 ? jwtChain.substring(0, 500) : jwtChain));
                     
-                    // Mostrar los primeros 500 caracteres del JWT
-                    String jwtPreview = jwtChain.length() > 500 ? jwtChain.substring(0, 500) + "..." : jwtChain;
-                    plugin.debugLog("[JWT] Recibido: " + jwtPreview);
-                    
-                    // Intentar decodificar el payload manualmente
+                    // Decodificar JWT manualmente
                     try {
-                        // Buscar el último JWT en la cadena (formato JSON con "chain")
                         String lastJwt = jwtChain;
                         if (jwtChain.startsWith("{") && jwtChain.contains("chain")) {
                             JsonObject root = JsonParser.parseString(jwtChain).getAsJsonObject();
@@ -110,13 +141,11 @@ public class BedrockLoginHandler {
                             }
                         }
                         
-                        // Decodificar el payload
                         String[] parts = lastJwt.split("\\.");
                         if (parts.length >= 2) {
                             String payload = new String(Base64.getUrlDecoder().decode(parts[1]), StandardCharsets.UTF_8);
                             plugin.debugLog("[JWT] Payload decodificado: " + payload);
                             
-                            // Buscar el nombre
                             JsonObject payloadObj = JsonParser.parseString(payload).getAsJsonObject();
                             if (payloadObj.has("extraData")) {
                                 JsonObject extraData = payloadObj.getAsJsonObject("extraData");
@@ -134,7 +163,7 @@ public class BedrockLoginHandler {
                             }
                         }
                     } catch (Exception e) {
-                        plugin.debugLog("[JWT] Error decodificando: " + e.getMessage());
+                        plugin.debugLog("[JWT] Error decodificando JWT: " + e.getMessage());
                     }
                 } else {
                     plugin.debugLog("[JWT] Chain length inválido: " + chainLength);
