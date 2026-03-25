@@ -16,7 +16,6 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
@@ -79,97 +78,60 @@ public class BedrockLoginHandler {
             plugin.log("&aLogin Bedrock | Protocolo: &e" + protocol
                     + " &7de: &f" + sender.getAddress().getHostAddress());
 
-            // ========== MOSTRAR BYTES DEL BUFFER ==========
-            plugin.debugLog("[JWT] Posición actual del buffer: " + buf.readerIndex());
-            int remaining = buf.readableBytes();
-            plugin.debugLog("[JWT] Bytes restantes: " + remaining);
-
-            if (remaining > 0) {
-                byte[] sample = new byte[Math.min(128, remaining)];
-                buf.getBytes(buf.readerIndex(), sample);
-                StringBuilder hex = new StringBuilder();
-                for (int i = 0; i < sample.length; i++) {
-                    hex.append(String.format("%02X ", sample[i]));
-                    if ((i + 1) % 16 == 0) hex.append("\n");
-                }
-                plugin.debugLog("[JWT] Primeros bytes:\n" + hex.toString());
-                
-                // Intentar leer el JWT directamente como string
-                String asString = new String(sample, StandardCharsets.UTF_8);
-                plugin.debugLog("[JWT] Como texto: " + (asString.length() > 200 ? asString.substring(0, 200) : asString));
-            }
-            // ==============================================
-
             String username = null;
             String xuid = null;
             UUID uuid = null;
 
             try {
-                // Intentar leer la longitud del chain (probando diferentes formas)
-                int chainLength = 0;
-                try {
-                    // Probar con readInt (big endian)
-                    chainLength = buf.readInt();
-                    plugin.debugLog("[JWT] Chain length (readInt): " + chainLength);
-                } catch (Exception e) {
-                    plugin.debugLog("[JWT] Error con readInt: " + e.getMessage());
+                // Leer AuthenticationType
+                int authType = buf.readInt();
+                plugin.debugLog("[JWT] AuthenticationType: " + authType);
+                
+                // Leer Certificate (string con JSON)
+                int certLength = readVarInt(buf);
+                if (certLength > 0 && certLength < 65536) {
+                    byte[] certBytes = new byte[certLength];
+                    buf.readBytes(certBytes);
+                    String certificate = new String(certBytes, StandardCharsets.UTF_8);
+                    plugin.debugLog("[JWT] Certificate: " + (certificate.length() > 200 ? certificate.substring(0, 200) : certificate));
                 }
                 
-                if (chainLength <= 0 || chainLength > 65536) {
-                    // Probar con readIntLE (little endian)
-                    buf.readerIndex(buf.readerIndex() - 4); // Volver atrás
-                    chainLength = buf.readIntLE();
-                    plugin.debugLog("[JWT] Chain length (readIntLE): " + chainLength);
-                }
+                // Leer Token (string con el JWT)
+                int tokenLength = readVarInt(buf);
+                plugin.debugLog("[JWT] Token length: " + tokenLength);
                 
-                if (chainLength > 0 && chainLength < 65536) {
-                    byte[] chainBytes = new byte[chainLength];
-                    buf.readBytes(chainBytes);
-                    String jwtChain = new String(chainBytes, StandardCharsets.UTF_8);
-                    plugin.debugLog("[JWT] JWT recibido (primeros 500): " + 
-                        (jwtChain.length() > 500 ? jwtChain.substring(0, 500) : jwtChain));
+                if (tokenLength > 0 && tokenLength < 65536) {
+                    byte[] tokenBytes = new byte[tokenLength];
+                    buf.readBytes(tokenBytes);
+                    String token = new String(tokenBytes, StandardCharsets.UTF_8);
+                    plugin.debugLog("[JWT] Token recibido (primeros 300): " + 
+                        (token.length() > 300 ? token.substring(0, 300) : token));
                     
-                    // Decodificar JWT manualmente
-                    try {
-                        String lastJwt = jwtChain;
-                        if (jwtChain.startsWith("{") && jwtChain.contains("chain")) {
-                            JsonObject root = JsonParser.parseString(jwtChain).getAsJsonObject();
-                            JsonArray chain = root.getAsJsonArray("chain");
-                            if (chain != null && chain.size() > 0) {
-                                lastJwt = chain.get(chain.size() - 1).getAsString();
-                                plugin.debugLog("[JWT] Last JWT extraído del chain");
-                            }
-                        }
+                    // Decodificar el JWT
+                    String[] parts = token.split("\\.");
+                    if (parts.length >= 2) {
+                        String payload = new String(Base64.getUrlDecoder().decode(parts[1]), StandardCharsets.UTF_8);
+                        plugin.debugLog("[JWT] Payload decodificado: " + payload);
                         
-                        String[] parts = lastJwt.split("\\.");
-                        if (parts.length >= 2) {
-                            String payload = new String(Base64.getUrlDecoder().decode(parts[1]), StandardCharsets.UTF_8);
-                            plugin.debugLog("[JWT] Payload decodificado: " + payload);
-                            
-                            JsonObject payloadObj = JsonParser.parseString(payload).getAsJsonObject();
-                            if (payloadObj.has("extraData")) {
-                                JsonObject extraData = payloadObj.getAsJsonObject("extraData");
-                                if (extraData.has("displayName")) {
-                                    username = extraData.get("displayName").getAsString();
-                                    plugin.debugLog("[JWT] Nombre encontrado en extraData: " + username);
-                                }
-                                if (extraData.has("XUID")) {
-                                    xuid = extraData.get("XUID").getAsString();
-                                    plugin.debugLog("[JWT] XUID encontrado: " + xuid);
-                                }
-                            } else if (payloadObj.has("displayName")) {
-                                username = payloadObj.get("displayName").getAsString();
-                                plugin.debugLog("[JWT] Nombre encontrado directamente: " + username);
+                        JsonObject payloadObj = JsonParser.parseString(payload).getAsJsonObject();
+                        if (payloadObj.has("extraData")) {
+                            JsonObject extraData = payloadObj.getAsJsonObject("extraData");
+                            if (extraData.has("displayName")) {
+                                username = extraData.get("displayName").getAsString();
+                                plugin.debugLog("[JWT] Nombre encontrado en extraData: " + username);
                             }
+                            if (extraData.has("XUID")) {
+                                xuid = extraData.get("XUID").getAsString();
+                                plugin.debugLog("[JWT] XUID encontrado: " + xuid);
+                            }
+                        } else if (payloadObj.has("displayName")) {
+                            username = payloadObj.get("displayName").getAsString();
+                            plugin.debugLog("[JWT] Nombre encontrado directamente: " + username);
                         }
-                    } catch (Exception e) {
-                        plugin.debugLog("[JWT] Error decodificando JWT: " + e.getMessage());
                     }
-                } else {
-                    plugin.debugLog("[JWT] Chain length inválido: " + chainLength);
                 }
             } catch (Exception e) {
-                plugin.debugLog("[JWT] Error general: " + e.getMessage());
+                plugin.debugLog("[JWT] Error extrayendo datos: " + e.getMessage());
             }
 
             if (username == null || username.isEmpty()) {
