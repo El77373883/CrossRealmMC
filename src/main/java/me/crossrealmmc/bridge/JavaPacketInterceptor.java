@@ -16,7 +16,7 @@ import java.util.UUID;
 
 public class JavaPacketInterceptor {
 
-    private final CrossRealmMC plugin;  // ← CrossRealmMC, no Plugin
+    private final CrossRealmMC plugin;
     private final ProtocolManager protocolManager;
     private final RakNetHandler rakNetHandler;
     private final Map<UUID, InetSocketAddress> bedrockAddresses = new HashMap<>();
