@@ -1,16 +1,16 @@
 # Configuración del servidor Java (al que conectar internamente)
 remote:
-  address: "auto"
-  port: 26573
+  address: "127.0.0.1"
+  port: 25565
 
 # Configuración del servidor Bedrock (para que los jugadores se conecten)
 bedrock:
   address: "0.0.0.0"
-  port: 26573
+  port: 19132
 
 online-mode: false
 
 bedrock-versions:
-  - "26.10"
+  - "*"
 
 debug: true
