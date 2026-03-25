@@ -11,59 +11,52 @@ public class JavaPacketForwarder {
 
     private final CrossRealmMC plugin;
     private final RakNetHandler rakNetHandler;
+    private final InetSocketAddress bedrockAddress;
 
-    public JavaPacketForwarder(CrossRealmMC plugin, RakNetHandler rakNetHandler) {
+    public JavaPacketForwarder(CrossRealmMC plugin, RakNetHandler rakNetHandler, InetSocketAddress bedrockAddress) {
         this.plugin = plugin;
         this.rakNetHandler = rakNetHandler;
+        this.bedrockAddress = bedrockAddress;
     }
 
-    /**
-     * Recibe un paquete del servidor Java y lo traduce a Bedrock
-     */
-    public void forwardToBedrock(ByteBuf javaPacket, BedrockSession session, InetSocketAddress bedrockAddress) {
-        if (javaPacket == null || !javaPacket.isReadable()) return;
+    public void forwardToBedrock(int packetId, ByteBuf javaPacket) {
+        plugin.debugLog("Traduciendo paquete Java: 0x" + String.format("%02X", packetId) + " para " + bedrockAddress);
 
-        int packetId = readVarInt(javaPacket);
-        plugin.debugLog("Paquete Java → Bedrock: 0x" + String.format("%02X", packetId) + " para " + session.getUsername());
+        if (rakNetHandler == null || bedrockAddress == null) {
+            plugin.debugLog("No se puede traducir: rakNetHandler o bedrockAddress es null");
+            return;
+        }
 
         switch (packetId) {
             case 0x26: // ChunkData (Java) → LevelChunkPacket (Bedrock)
-                handleChunkData(javaPacket, session, bedrockAddress);
+                handleChunkData(javaPacket);
                 break;
-
             case 0x1F: // AddEntity (Java) → AddEntityPacket (Bedrock)
-                handleAddEntity(javaPacket, session, bedrockAddress);
+                handleAddEntity(javaPacket);
                 break;
-
             case 0x24: // AddPlayer (Java) → AddPlayerPacket (Bedrock)
-                handleAddPlayer(javaPacket, session, bedrockAddress);
+                handleAddPlayer(javaPacket);
                 break;
-
             case 0x2C: // UpdateBlock (Java) → UpdateBlockPacket (Bedrock)
-                handleUpdateBlock(javaPacket, session, bedrockAddress);
+                handleUpdateBlock(javaPacket);
                 break;
-
             case 0x0F: // SetTime (Java) → SetTimePacket (Bedrock)
-                handleSetTime(javaPacket, session, bedrockAddress);
+                handleSetTime(javaPacket);
                 break;
-
             case 0x4A: // SetHealth (Java) → SetHealthPacket (Bedrock)
-                handleSetHealth(javaPacket, session, bedrockAddress);
+                handleSetHealth(javaPacket);
                 break;
-
             case 0x32: // ChatMessage (Java) → TextPacket (Bedrock)
-                handleChatMessage(javaPacket, session, bedrockAddress);
+                handleChatMessage(javaPacket);
                 break;
-
             default:
-                plugin.debugLog("Paquete Java no traducido: 0x" + String.format("%02X", packetId));
+                plugin.debugLog("Paquete Java no traducido aún: 0x" + String.format("%02X", packetId));
                 break;
         }
     }
 
-    private void handleChunkData(ByteBuf buf, BedrockSession session, InetSocketAddress address) {
+    private void handleChunkData(ByteBuf buf) {
         try {
-            // Leer chunk desde Java
             int chunkX = buf.readInt();
             int chunkZ = buf.readInt();
             boolean fullChunk = buf.readBoolean();
@@ -85,14 +78,14 @@ public class JavaPacketForwarder {
             writeVarInt(bedrockPacket, dataSize); // data length
             bedrockPacket.writeBytes(chunkData);
             
-            sendToBedrock(bedrockPacket, address);
+            sendToBedrock(bedrockPacket);
             
         } catch (Exception e) {
             plugin.debugLog("Error traduciendo chunk: " + e.getMessage());
         }
     }
 
-    private void handleAddEntity(ByteBuf buf, BedrockSession session, InetSocketAddress address) {
+    private void handleAddEntity(ByteBuf buf) {
         try {
             int entityId = buf.readInt();
             long uuidMsb = buf.readLong();
@@ -116,14 +109,14 @@ public class JavaPacketForwarder {
             bedrockPacket.writeByte(0);
             writeVarInt(bedrockPacket, 0);
             
-            sendToBedrock(bedrockPacket, address);
+            sendToBedrock(bedrockPacket);
             
         } catch (Exception e) {
             plugin.debugLog("Error traduciendo entidad: " + e.getMessage());
         }
     }
 
-    private void handleAddPlayer(ByteBuf buf, BedrockSession session, InetSocketAddress address) {
+    private void handleAddPlayer(ByteBuf buf) {
         try {
             int entityId = buf.readInt();
             long uuidMsb = buf.readLong();
@@ -134,7 +127,6 @@ public class JavaPacketForwarder {
             
             plugin.debugLog("Jugador añadido: id=" + entityId);
             
-            // Traducción simple
             ByteBuf bedrockPacket = Unpooled.buffer();
             writeVarInt(bedrockPacket, 0x1C); // MovePlayerPacket
             writeVarLong(bedrockPacket, entityId);
@@ -146,14 +138,14 @@ public class JavaPacketForwarder {
             bedrockPacket.writeByte(0);
             writeVarInt(bedrockPacket, 0);
             
-            sendToBedrock(bedrockPacket, address);
+            sendToBedrock(bedrockPacket);
             
         } catch (Exception e) {
             plugin.debugLog("Error traduciendo jugador: " + e.getMessage());
         }
     }
 
-    private void handleUpdateBlock(ByteBuf buf, BedrockSession session, InetSocketAddress address) {
+    private void handleUpdateBlock(ByteBuf buf) {
         try {
             int x = buf.readInt();
             int y = buf.readInt();
@@ -170,14 +162,14 @@ public class JavaPacketForwarder {
             writeVarInt(bedrockPacket, 1); // blockRuntimeId
             writeVarInt(bedrockPacket, 0); // flags
             
-            sendToBedrock(bedrockPacket, address);
+            sendToBedrock(bedrockPacket);
             
         } catch (Exception e) {
             plugin.debugLog("Error traduciendo bloque: " + e.getMessage());
         }
     }
 
-    private void handleSetTime(ByteBuf buf, BedrockSession session, InetSocketAddress address) {
+    private void handleSetTime(ByteBuf buf) {
         try {
             long worldTime = buf.readLong();
             plugin.debugLog("Tiempo actualizado: " + worldTime);
@@ -186,14 +178,14 @@ public class JavaPacketForwarder {
             writeVarInt(bedrockPacket, 0x1C); // SetTimePacket
             writeVarInt(bedrockPacket, (int) worldTime);
             
-            sendToBedrock(bedrockPacket, address);
+            sendToBedrock(bedrockPacket);
             
         } catch (Exception e) {
             plugin.debugLog("Error traduciendo tiempo: " + e.getMessage());
         }
     }
 
-    private void handleSetHealth(ByteBuf buf, BedrockSession session, InetSocketAddress address) {
+    private void handleSetHealth(ByteBuf buf) {
         try {
             float health = buf.readFloat();
             plugin.debugLog("Salud actualizada: " + health);
@@ -202,41 +194,41 @@ public class JavaPacketForwarder {
             writeVarInt(bedrockPacket, 0x3C); // SetHealthPacket
             writeVarInt(bedrockPacket, (int) health);
             
-            sendToBedrock(bedrockPacket, address);
+            sendToBedrock(bedrockPacket);
             
         } catch (Exception e) {
             plugin.debugLog("Error traduciendo salud: " + e.getMessage());
         }
     }
 
-    private void handleChatMessage(ByteBuf buf, BedrockSession session, InetSocketAddress address) {
+    private void handleChatMessage(ByteBuf buf) {
         try {
             String message = readJavaString(buf);
             plugin.debugLog("Chat: " + message);
             
             ByteBuf bedrockPacket = Unpooled.buffer();
             writeVarInt(bedrockPacket, 0x09); // TextPacket
-            writeByte(bedrockPacket, 1); // type = CHAT
+            bedrockPacket.writeByte(1); // type = CHAT
             writeString(bedrockPacket, message);
             writeString(bedrockPacket, "");
             writeString(bedrockPacket, "");
             
-            sendToBedrock(bedrockPacket, address);
+            sendToBedrock(bedrockPacket);
             
         } catch (Exception e) {
             plugin.debugLog("Error traduciendo chat: " + e.getMessage());
         }
     }
 
-    private void sendToBedrock(ByteBuf packet, InetSocketAddress address) {
-        if (rakNetHandler != null && packet.isReadable()) {
-            rakNetHandler.sendFrameSetOrdered(null, address, packet);
+    private void sendToBedrock(ByteBuf packet) {
+        if (rakNetHandler != null && bedrockAddress != null && packet.isReadable()) {
+            rakNetHandler.sendFrameSetOrdered(null, bedrockAddress, packet);
         } else {
             packet.release();
         }
     }
 
-    // Utilidades de lectura/escritura (igual que en PacketTranslator)
+    // Utilidades
     private int readVarInt(ByteBuf buf) {
         int value = 0;
         int size = 0;
@@ -278,9 +270,5 @@ public class JavaPacketForwarder {
         byte[] bytes = str.getBytes(java.nio.charset.StandardCharsets.UTF_8);
         writeVarInt(buf, bytes.length);
         buf.writeBytes(bytes);
-    }
-
-    private void writeByte(ByteBuf buf, int value) {
-        buf.writeByte(value);
     }
 }
