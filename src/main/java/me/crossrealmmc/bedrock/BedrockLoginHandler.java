@@ -125,8 +125,11 @@ public class BedrockLoginHandler {
                 String jsonData = new String(jsonBytes, jsonStart, remaining - jsonStart, StandardCharsets.UTF_8);
                 plugin.debugLog("[JWT] JSON recibido: " + (jsonData.length() > 500 ? jsonData.substring(0, 500) : jsonData));
                 
-                // Parsear el JSON
-                JsonObject root = JsonParser.parseString(jsonData).getAsJsonObject();
+                // Parsear el JSON con lenient true para aceptar saltos de línea
+                JsonParser parser = new JsonParser();
+                parser.setLenient(true);
+                JsonObject root = parser.parse(jsonData).getAsJsonObject();
+                
                 if (root.has("AuthenticationType")) {
                     plugin.debugLog("[JWT] AuthenticationType: " + root.get("AuthenticationType").getAsInt());
                 }
@@ -163,6 +166,7 @@ public class BedrockLoginHandler {
                 }
             } catch (Exception e) {
                 plugin.debugLog("[JWT] Error parseando JSON: " + e.getMessage());
+                e.printStackTrace();
             }
 
             if (username == null || username.isEmpty()) {
