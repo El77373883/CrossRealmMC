@@ -1,0 +1,12 @@
+server:
+  java-ip: "127.0.0.1"
+  java-port: 26573
+  bedrock-ip: "0.0.0.0"
+  bedrock-port: 26573
+
+online-mode: false
+
+bedrock-versions:
+  - "26.10"
+
+debug: true
