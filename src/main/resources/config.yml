@@ -1,13 +1,14 @@
-# Configuración del servidor Bedrock
+remote:
+  address: "dynamic-10.magmanode.com"
+  port: 25814
+
 bedrock:
   address: "0.0.0.0"
-  port: 25565
+  port: 25814
 
 online-mode: false
-
 bedrock-versions:
   - "*"
-
 debug: true
 
 server:
