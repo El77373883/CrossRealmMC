@@ -155,7 +155,7 @@ public class RealmGate {
         ByteArrayOutputStream buf  = new ByteArrayOutputStream();
         DataOutputStream      data = new DataOutputStream(buf);
         writeVarInt(data, 0x00);
-        writeVarInt(data, 771); // Protocolo Java para 1.21.11
+        writeVarInt(data, 774); // ✅ Protocolo correcto para Paper 1.21.11
         writeJavaString(data, host);
         data.writeShort(port);
         writeVarInt(data, 2);
