@@ -108,10 +108,12 @@ public class RealmGate {
         javaConnector.submit(() -> {
             Socket socket = null;
             try {
-                // ========== IP Y PUERTO FORZADOS ==========
-                String host = "127.0.0.1";   // IP fija (cambia si tu servidor Java está en otra IP)
-                int port    = 26573;          // Puerto fijo (cambia si tu servidor Java usa otro puerto)
-                // =========================================
+                String host = plugin.getConfigManager().getRemoteAddress();
+                int port = plugin.getConfigManager().getRemotePort();
+                
+                if (host.equalsIgnoreCase("auto")) {
+                    host = "127.0.0.1";
+                }
 
                 plugin.debugLog("Conectando al servidor Java: " + host + ":" + port
                         + " para " + session.getUsername());
@@ -278,11 +280,9 @@ public class RealmGate {
                     session.setUsername(name);
                     plugin.debugLog("LoginSuccess: " + name);
                     sendLoginAcknowledged(out);
-                    // Enviamos ClientSettings
                     sendClientSettings(out, compressionThreshold);
                     plugin.debugLog("ClientSettings enviado");
                     inConfigState = true;
-                    // ❌ NO enviamos FinishConfiguration aún; esperamos al servidor
                 } else if (id == 0x00) {
                     plugin.debugLog("Disconnect login: " + readJavaString(pkt));
                     return false;
@@ -293,9 +293,7 @@ public class RealmGate {
             } else {
                 // Estado CONFIGURATION
                 if (id == 0x02) {
-                    // El servidor ha terminado su configuración
                     plugin.debugLog("FinishConfiguration recibido del servidor");
-                    // Ahora enviamos nuestro FinishConfiguration
                     sendAcknowledgeFinishConfiguration(out, compressionThreshold);
                     plugin.debugLog("FinishConfiguration enviado al servidor");
                     return true;
@@ -319,6 +317,14 @@ public class RealmGate {
                     writeVarInt(packsData, 0);
                     sendCompressed(out, packsContent.toByteArray(), compressionThreshold);
                     plugin.debugLog("KnownPacks enviado");
+                } else if (id == 0x07) {
+                    int available = pkt.available();
+                    if (available > 0) pkt.skipBytes(available);
+                    plugin.debugLog("RegistryData recibido (" + available + " bytes)");
+                } else if (id == 0x0C) {
+                    int available = pkt.available();
+                    if (available > 0) pkt.skipBytes(available);
+                    plugin.debugLog("UpdateEnabledFeatures recibido (" + available + " bytes)");
                 } else {
                     plugin.debugLog("Config paquete ignorado: 0x" + String.format("%02X", id));
                 }
