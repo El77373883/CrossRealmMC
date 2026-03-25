@@ -112,12 +112,9 @@ public class BedrockLoginHandler {
             plugin.log("&aJugador aceptado: &e" + prefixedName);
             plugin.getPlayerDetector().registerPlayer(uuid, PlayerDetector.PlayerType.BEDROCK, "26.10");
 
-            // Registrar en el interceptor si el jugador ya existe en Java
-            Player javaPlayer = Bukkit.getPlayer(uuid);
-            if (javaPlayer != null) {
-                plugin.getJavaPacketInterceptor().registerBedrockPlayer(javaPlayer, sender);
-                plugin.debugLog("Jugador registrado en interceptor: " + prefixedName);
-            }
+            // Registrar en el interceptor con el nombre del jugador Bedrock
+            plugin.getJavaPacketInterceptor().registerBedrockPlayer(prefixedName, sender);
+            plugin.debugLog("Jugador registrado en interceptor: " + prefixedName);
 
             sendPlayStatus(ctx, sender, STATUS_LOGIN_SUCCESS);
             sendResourcePacksInfo(ctx, sender);
