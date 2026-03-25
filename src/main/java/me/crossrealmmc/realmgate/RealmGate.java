@@ -3,6 +3,7 @@ package me.crossrealmmc.realmgate;
 import me.crossrealmmc.CrossRealmMC;
 import me.crossrealmmc.bedrock.BedrockPlayer;
 import me.crossrealmmc.detection.PlayerDetector;
+import me.crossrealmmc.raknet.RakNetHandler;
 
 import java.io.*;
 import java.net.InetSocketAddress;
@@ -18,13 +19,21 @@ public class RealmGate {
 
     private final CrossRealmMC plugin;
     private final ExecutorService javaConnector = Executors.newFixedThreadPool(10);
+    private final ExecutorService packetReader = Executors.newCachedThreadPool();
 
     private final Map<String, BedrockSession> pendingSessions       = new HashMap<>();
     private final Map<String, BedrockSession> authenticatedSessions = new HashMap<>();
     private final Map<String, Socket>         javaConnections       = new HashMap<>();
+    private final Map<String, JavaPacketForwarder> forwarders       = new HashMap<>();
+
+    private RakNetHandler rakNetHandler;
 
     public RealmGate(CrossRealmMC plugin) {
         this.plugin = plugin;
+    }
+
+    public void setRakNetHandler(RakNetHandler handler) {
+        this.rakNetHandler = handler;
     }
 
     public BedrockSession createSession(InetSocketAddress address, String bedrockVersion) {
@@ -134,6 +143,14 @@ public class RealmGate {
                 if (success) {
                     javaConnections.put(ip, socket);
                     session.setJavaConnected(true);
+                    
+                    // Crear forwarder y empezar a leer paquetes
+                    JavaPacketForwarder forwarder = new JavaPacketForwarder(plugin, rakNetHandler, session.getAddress());
+                    forwarders.put(ip, forwarder);
+                    
+                    // Iniciar lectura de paquetes del servidor Java
+                    startReadingPackets(in, session, forwarder);
+                    
                     plugin.debugLog("✔ " + session.getUsername() + " conectado al servidor Java");
                 } else {
                     plugin.debugLog("✘ Servidor Java rechazo a: " + session.getUsername());
@@ -143,10 +160,66 @@ public class RealmGate {
                 plugin.debugLog("✘ Error al conectar Java para "
                         + session.getUsername() + ": " + e.getMessage());
                 removeSession(ip);
-            } finally {
-                if (socket != null && !javaConnections.containsKey(ip)) {
-                    try { socket.close(); } catch (IOException ignored) {}
+            }
+        });
+    }
+
+    private void startReadingPackets(DataInputStream in, BedrockSession session, JavaPacketForwarder forwarder) {
+        packetReader.submit(() -> {
+            try {
+                int compressionThreshold = -1;
+                while (session.isJavaConnected() && !Thread.currentThread().isInterrupted()) {
+                    if (in.available() == 0) {
+                        try { Thread.sleep(10); } catch (InterruptedException e) { break; }
+                        continue;
+                    }
+
+                    byte[] data;
+                    if (compressionThreshold >= 0) {
+                        int compressedLen = readVarInt(in);
+                        byte[] compressedData = new byte[compressedLen];
+                        in.readFully(compressedData);
+                        DataInputStream tmp = new DataInputStream(new ByteArrayInputStream(compressedData));
+                        int dataLength = readVarInt(tmp);
+                        if (dataLength == 0) {
+                            int remaining = compressedLen - varIntSize(0);
+                            data = new byte[remaining];
+                            tmp.readFully(data);
+                        } else {
+                            byte[] compressed = new byte[compressedLen - varIntSize(dataLength)];
+                            tmp.readFully(compressed);
+                            data = decompress(compressed, dataLength);
+                        }
+                    } else {
+                        int len = readVarInt(in);
+                        if (len <= 0) continue;
+                        data = new byte[len];
+                        in.readFully(data);
+                    }
+
+                    ByteArrayInputStream bais = new ByteArrayInputStream(data);
+                    DataInputStream pkt = new DataInputStream(bais);
+                    int id = readVarInt(pkt);
+                    
+                    if (id == 0x03) {
+                        compressionThreshold = readVarInt(pkt);
+                        plugin.debugLog("Compression threshold actualizado: " + compressionThreshold);
+                        continue;
+                    }
+                    
+                    // Enviar el paquete al forwarder para traducir a Bedrock
+                    byte[] remaining = new byte[bais.available()];
+                    bais.read(remaining);
+                    ByteBuf javaPacket = io.netty.buffer.Unpooled.wrappedBuffer(remaining);
+                    forwarder.forwardToBedrock(id, javaPacket);
+                    
                 }
+            } catch (IOException e) {
+                plugin.debugLog("Error leyendo paquetes Java: " + e.getMessage());
+            } catch (Exception e) {
+                plugin.debugLog("Error en packet reader: " + e.getMessage());
+            } finally {
+                plugin.debugLog("Packet reader detenido para: " + session.getUsername());
             }
         });
     }
@@ -404,6 +477,7 @@ public class RealmGate {
         }
         Socket sock = javaConnections.remove(ip);
         if (sock != null) try { sock.close(); } catch (IOException ignored) {}
+        forwarders.remove(ip);
         plugin.debugLog("Sesion eliminada: " + ip);
     }
 
