@@ -145,11 +145,9 @@ public class RealmGate {
                     javaConnections.put(ip, socket);
                     session.setJavaConnected(true);
                     
-                    // Crear forwarder y empezar a leer paquetes
                     JavaPacketForwarder forwarder = new JavaPacketForwarder(plugin, rakNetHandler, session.getAddress());
                     forwarders.put(ip, forwarder);
                     
-                    // Iniciar lectura de paquetes del servidor Java
                     startReadingPackets(in, session, forwarder);
                     
                     plugin.debugLog("✔ " + session.getUsername() + " conectado al servidor Java");
@@ -212,7 +210,6 @@ public class RealmGate {
                         continue;
                     }
                     
-                    // Enviar el paquete al forwarder para traducir a Bedrock
                     byte[] remaining = new byte[bais.available()];
                     bais.read(remaining);
                     ByteBuf javaPacket = io.netty.buffer.Unpooled.wrappedBuffer(remaining);
@@ -233,7 +230,7 @@ public class RealmGate {
         ByteArrayOutputStream buf  = new ByteArrayOutputStream();
         DataOutputStream      data = new DataOutputStream(buf);
         writeVarInt(data, 0x00);
-        writeVarInt(data, 774); // Protocolo correcto para Paper 1.21.11
+        writeVarInt(data, 774);
         writeJavaString(data, host);
         data.writeShort(port);
         writeVarInt(data, 2);
@@ -349,7 +346,6 @@ public class RealmGate {
                     + (inConfigState ? " [CONFIG]" : " [LOGIN]"));
 
             if (!inConfigState) {
-                // Estado LOGIN
                 if (id == 0x02) {
                     long msb  = pkt.readLong();
                     long lsb  = pkt.readLong();
@@ -369,7 +365,6 @@ public class RealmGate {
                     plugin.debugLog("SetCompression threshold: " + compressionThreshold);
                 }
             } else {
-                // Estado CONFIGURATION
                 if (id == 0x02) {
                     plugin.debugLog("FinishConfiguration recibido del servidor");
                     sendAcknowledgeFinishConfiguration(out, compressionThreshold);
@@ -379,7 +374,17 @@ public class RealmGate {
                     plugin.debugLog("Disconnect config: " + readJavaString(pkt));
                     return false;
                 } else if (id == 0x01) {
-                    plugin.debugLog("PluginMessage servidor ignorado: 0x01");
+                    // ✅ CORREGIDO: Responder al PluginMessage
+                    String channel = readJavaString(pkt);
+                    plugin.debugLog("PluginMessage recibido: " + channel);
+                    
+                    ByteArrayOutputStream response = new ByteArrayOutputStream();
+                    DataOutputStream respData = new DataOutputStream(response);
+                    writeVarInt(respData, 0x01);
+                    writeJavaString(respData, channel);
+                    writeVarInt(respData, 0);
+                    sendCompressed(out, response.toByteArray(), compressionThreshold);
+                    plugin.debugLog("PluginMessage respondido: " + channel);
                 } else if (id == 0x05) {
                     long pingId = pkt.readLong();
                     ByteArrayOutputStream pongContent = new ByteArrayOutputStream();
