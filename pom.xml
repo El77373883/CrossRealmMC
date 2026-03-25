@@ -35,55 +35,58 @@
             <id>opencollab-snapshots</id>
             <url>https://repo.opencollab.dev/maven-snapshots/</url>
         </repository>
+        <repository>
+            <id>dmulloy2-repo</id>
+            <url>https://repo.dmulloy2.net/repository/public/</url>
+        </repository>
     </repositories>
     <dependencies>
-        <!-- Spigot / Paper API -->
         <dependency>
             <groupId>org.spigotmc</groupId>
             <artifactId>spigot-api</artifactId>
             <version>1.21.1-R0.1-SNAPSHOT</version>
             <scope>provided</scope>
         </dependency>
-        <!-- Netty para RakNet UDP -->
         <dependency>
             <groupId>io.netty</groupId>
             <artifactId>netty-all</artifactId>
             <version>4.1.97.Final</version>
             <scope>compile</scope>
         </dependency>
-        <!-- RakNet transport -->
         <dependency>
             <groupId>org.cloudburstmc.netty</groupId>
             <artifactId>netty-transport-raknet</artifactId>
             <version>1.0.0.CR3-SNAPSHOT</version>
             <scope>compile</scope>
         </dependency>
-        <!-- Gson -->
         <dependency>
             <groupId>com.google.code.gson</groupId>
             <artifactId>gson</artifactId>
             <version>2.10.1</version>
             <scope>compile</scope>
         </dependency>
-        <!-- PlaceholderAPI -->
         <dependency>
             <groupId>me.clip</groupId>
             <artifactId>placeholderapi</artifactId>
             <version>2.11.6</version>
             <scope>provided</scope>
         </dependency>
-        <!-- ViaVersion 5.7.2 -->
         <dependency>
             <groupId>com.viaversion</groupId>
             <artifactId>viaversion-api</artifactId>
             <version>5.7.2</version>
             <scope>provided</scope>
         </dependency>
-        <!-- ViaBackwards 5.7.2 -->
         <dependency>
             <groupId>com.viaversion</groupId>
             <artifactId>viabackwards</artifactId>
             <version>5.7.2</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.comphenix.protocol</groupId>
+            <artifactId>ProtocolLib</artifactId>
+            <version>5.1.0</version>
             <scope>provided</scope>
         </dependency>
     </dependencies>
