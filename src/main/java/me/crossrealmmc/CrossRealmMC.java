@@ -28,38 +28,38 @@ public class CrossRealmMC extends JavaPlugin {
     public void onEnable() {
         instance = this;
         printBanner();
-        this.configManager    = new ConfigManager(this);
+        this.configManager = new ConfigManager(this);
         this.connectionLogger = new ConnectionLogger(this);
-        this.playerDetector   = new PlayerDetector(this);
-        this.banManager       = new BanManager(this);
-        this.antiCheat        = new AntiCheat(this);
-        
+        this.playerDetector = new PlayerDetector(this);
+        this.banManager = new BanManager(this);
+        this.antiCheat = new AntiCheat(this);
+
         if (!checkConfig()) return;
-        
+
         Bukkit.getPluginManager().registerEvents(new PlayerListener(this), this);
         getCommand("crmc").setExecutor(new CRMCCommand(this));
         getCommand("crmc").setTabCompleter(new CRMCCommand(this));
-        
+
         if (Bukkit.getPluginManager().getPlugin("PlaceholderAPI") != null)
             new CRMCPlaceholder(this).register();
-        
+
         if (Bukkit.getPluginManager().getPlugin("ViaVersion") != null)
             log("&aViaVersion &7detectado.");
         if (Bukkit.getPluginManager().getPlugin("ViaBackwards") != null)
             log("&aViaBackwards &7detectado.");
-        
+
         this.rakNetServer = new RakNetServer(this);
         rakNetServer.start();
-        
+
         this.javaPacketInterceptor = new JavaPacketInterceptor(this, rakNetServer.getHandler());
         javaPacketInterceptor.start();
-        
+
         printStartupDone();
     }
 
     @Override
     public void onDisable() {
-        if (rakNetServer != null)     rakNetServer.stop();
+        if (rakNetServer != null) rakNetServer.stop();
         if (connectionLogger != null) connectionLogger.close();
         printShutdown();
     }
@@ -135,16 +135,49 @@ public class CrossRealmMC extends JavaPlugin {
         c("§8[§b✦ CrossRealmMC§8] §7━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
     }
 
-    private void c(String msg) { Bukkit.getConsoleSender().sendMessage(msg); }
-    public void log(String message) { c("§8[§b✦ CrossRealmMC§8] §r" + message.replace("&", "§")); }
-    public void debugLog(String message) { if (configManager != null && configManager.isDebug()) c("§8[§eCrossRealmMC §7DEBUG§8] §7" + message); }
+    private void c(String msg) {
+        Bukkit.getConsoleSender().sendMessage(msg);
+    }
 
-    public static CrossRealmMC getInstance()      { return instance; }
-    public ConfigManager getConfigManager()        { return configManager; }
-    public ConnectionLogger getConnectionLogger()  { return connectionLogger; }
-    public PlayerDetector getPlayerDetector()      { return playerDetector; }
-    public BanManager getBanManager()              { return banManager; }
-    public AntiCheat getAntiCheat()                { return antiCheat; }
-    public RakNetServer getRakNetServer()          { return rakNetServer; }
-    public JavaPacketInterceptor getJavaPacketInterceptor() { return javaPacketInterceptor; }
+    public void log(String message) {
+        c("§8[§b✦ CrossRealmMC§8] §r" + message.replace("&", "§"));
+    }
+
+    public void debugLog(String message) {
+        if (configManager != null && configManager.isDebug()) {
+            c("§8[§eCrossRealmMC §7DEBUG§8] §7" + message);
+        }
+    }
+
+    public static CrossRealmMC getInstance() {
+        return instance;
+    }
+
+    public ConfigManager getConfigManager() {
+        return configManager;
+    }
+
+    public ConnectionLogger getConnectionLogger() {
+        return connectionLogger;
+    }
+
+    public PlayerDetector getPlayerDetector() {
+        return playerDetector;
+    }
+
+    public BanManager getBanManager() {
+        return banManager;
+    }
+
+    public AntiCheat getAntiCheat() {
+        return antiCheat;
+    }
+
+    public RakNetServer getRakNetServer() {
+        return rakNetServer;
+    }
+
+    public JavaPacketInterceptor getJavaPacketInterceptor() {
+        return javaPacketInterceptor;
+    }
 }
