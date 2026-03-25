@@ -14,3 +14,8 @@ bedrock-versions:
   - "*"
 
 debug: true
+
+# MOTD personalizado para Bedrock
+motd:
+  line1: "&bCrossRealmMC"
+  line2: "&aJava + Bedrock"
