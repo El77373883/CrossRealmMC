@@ -39,14 +39,18 @@ public class JavaPacketInterceptor {
     }
 
     public void start() {
-        Plugin pluginRef = plugin; // Para usar en el PacketAdapter
+        // Creamos una referencia final al plugin con el tipo correcto
+        final CrossRealmMC pluginInstance = this.plugin;
+        // Creamos otra referencia como Plugin para pasarla al PacketAdapter
+        Plugin pluginRef = this.plugin;
 
         protocolManager.addPacketListener(new PacketAdapter(pluginRef, PacketType.Play.Server.MAP_CHUNK) {
             @Override
             public void onPacketSending(PacketEvent event) {
                 Player player = event.getPlayer();
                 if (bedrockAddresses.containsKey(player.getUniqueId())) {
-                    plugin.debugLog("Chunk para Bedrock: " + player.getName());
+                    // ✅ Usamos pluginInstance, que SÍ tiene el método debugLog
+                    pluginInstance.debugLog("Chunk para Bedrock: " + player.getName());
                     // Aquí irá la traducción a LevelChunkPacket de Bedrock
                 }
             }
@@ -58,7 +62,8 @@ public class JavaPacketInterceptor {
                 Player player = event.getPlayer();
                 if (bedrockAddresses.containsKey(player.getUniqueId())) {
                     String message = event.getPacket().getStrings().read(0);
-                    plugin.debugLog("Chat para Bedrock: " + message);
+                    // ✅ Usamos pluginInstance, que SÍ tiene el método debugLog
+                    pluginInstance.debugLog("Chat para Bedrock: " + message);
                     // Aquí irá la traducción a TextPacket de Bedrock
                 }
             }
