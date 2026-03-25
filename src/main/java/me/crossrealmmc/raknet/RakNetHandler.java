@@ -11,6 +11,7 @@ import me.crossrealmmc.bedrock.BedrockPlayer;
 import me.crossrealmmc.bedrock.BedrockPlayerRegistry;
 import me.crossrealmmc.bedrock.PacketTranslator;
 import me.crossrealmmc.raknet.packets.*;
+import org.bukkit.Bukkit;
 
 import java.io.ByteArrayOutputStream;
 import java.net.InetSocketAddress;
@@ -398,13 +399,18 @@ public class RakNetHandler extends SimpleChannelInboundHandler<DatagramPacket> {
         plugin.log("&aConnectionRequestAccepted enviado en FrameSet");
     }
 
-    // ✅ FIX: cerrar sesion Java al desconectarse de Bedrock
     private void handleDisconnect(InetSocketAddress sender) {
         String ip = sender.getAddress().getHostAddress();
         BedrockPlayer player = registry.get(sender);
         if (player != null) {
-            if (player.getUuid() != null)
+            if (player.getUuid() != null) {
                 plugin.getPlayerDetector().unregisterPlayer(player.getUuid());
+                // Eliminar del interceptor
+                org.bukkit.entity.Player javaPlayer = Bukkit.getPlayer(player.getUuid());
+                if (javaPlayer != null) {
+                    plugin.getJavaPacketInterceptor().unregisterBedrockPlayer(javaPlayer);
+                }
+            }
             plugin.getConnectionLogger().logDisconnect(
                 player.getUsername() != null ? player.getUsername() : "Unknown",
                 me.crossrealmmc.detection.PlayerDetector.PlayerType.BEDROCK,
@@ -412,7 +418,6 @@ public class RakNetHandler extends SimpleChannelInboundHandler<DatagramPacket> {
             );
             registry.remove(sender);
         }
-        plugin.getRealmGate().removeSession(ip);
         sentPacketCache.clear();
         fragmentBuffers.clear();
         fragmentCounts.clear();
