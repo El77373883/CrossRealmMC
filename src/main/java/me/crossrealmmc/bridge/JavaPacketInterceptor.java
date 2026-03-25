@@ -16,13 +16,13 @@ import java.util.UUID;
 
 public class JavaPacketInterceptor {
 
-    private final CrossRealmMC plugin;  // ← Cambia a CrossRealmMC
+    private final CrossRealmMC plugin;  // ← CrossRealmMC, no Plugin
     private final ProtocolManager protocolManager;
     private final RakNetHandler rakNetHandler;
     private final Map<UUID, InetSocketAddress> bedrockAddresses = new HashMap<>();
 
     public JavaPacketInterceptor(CrossRealmMC plugin, RakNetHandler rakNetHandler) {
-        this.plugin = plugin;  // ← Ahora es CrossRealmMC
+        this.plugin = plugin;
         this.rakNetHandler = rakNetHandler;
         this.protocolManager = ProtocolLibrary.getProtocolManager();
     }
@@ -34,6 +34,7 @@ public class JavaPacketInterceptor {
 
     public void unregisterBedrockPlayer(Player player) {
         bedrockAddresses.remove(player.getUniqueId());
+        plugin.debugLog("Jugador Bedrock desregistrado: " + player.getName());
     }
 
     public void start() {
@@ -43,6 +44,7 @@ public class JavaPacketInterceptor {
                 Player player = event.getPlayer();
                 if (bedrockAddresses.containsKey(player.getUniqueId())) {
                     plugin.debugLog("Chunk para Bedrock: " + player.getName());
+                    // Aquí irá la traducción a chunk de Bedrock
                 }
             }
         });
@@ -54,6 +56,7 @@ public class JavaPacketInterceptor {
                 if (bedrockAddresses.containsKey(player.getUniqueId())) {
                     String message = event.getPacket().getStrings().read(0);
                     plugin.debugLog("Chat para Bedrock: " + message);
+                    // Aquí irá la traducción a TextPacket de Bedrock
                 }
             }
         });
