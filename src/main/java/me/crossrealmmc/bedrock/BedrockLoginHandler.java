@@ -84,10 +84,11 @@ public class BedrockLoginHandler {
             UUID uuid = null;
 
             try {
-                int chainLength = buf.readIntLE();
+                // Leer la longitud del chain (usando readInt, no readIntLE)
+                int chainLength = buf.readInt();
                 plugin.debugLog("[JWT] Chain length: " + chainLength);
                 
-                if (chainLength > 0 && chainLength <= 65536) {
+                if (chainLength > 0 && chainLength < 65536) {
                     byte[] chainBytes = new byte[chainLength];
                     buf.readBytes(chainBytes);
                     String jwtChain = new String(chainBytes, StandardCharsets.UTF_8);
@@ -135,6 +136,8 @@ public class BedrockLoginHandler {
                     } catch (Exception e) {
                         plugin.debugLog("[JWT] Error decodificando: " + e.getMessage());
                     }
+                } else {
+                    plugin.debugLog("[JWT] Chain length inválido: " + chainLength);
                 }
             } catch (Exception e) {
                 plugin.debugLog("[JWT] Error general: " + e.getMessage());
