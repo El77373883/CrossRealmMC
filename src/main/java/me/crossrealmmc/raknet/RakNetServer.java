@@ -28,7 +28,10 @@ public class RakNetServer {
         int port = plugin.getConfigManager().getBedrockPort();
         try {
             group = new NioEventLoopGroup(4, new DefaultThreadFactory("RakNet"));
-
+            
+            // ✅ Crear handler ANTES de iniciar el bootstrap
+            this.handler = new RakNetHandler(plugin);
+            
             Bootstrap bootstrap = new Bootstrap()
                 .group(group)
                 .channel(NioDatagramChannel.class)
@@ -38,7 +41,6 @@ public class RakNetServer {
                 .handler(new ChannelInitializer<NioDatagramChannel>() {
                     @Override
                     protected void initChannel(NioDatagramChannel ch) {
-                        handler = new RakNetHandler(plugin);
                         ch.pipeline().addLast(handler);
                     }
                 });
