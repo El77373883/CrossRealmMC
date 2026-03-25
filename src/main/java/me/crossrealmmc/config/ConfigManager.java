@@ -25,10 +25,6 @@ public class ConfigManager {
         this.config = plugin.getConfig();
         this.language = config.getString("language", "es");
 
-        // Log de depuración para ver qué valor tiene server.java-ip al cargar
-        String loadedIp = config.getString("server.java-ip", "NO_ENCONTRADA");
-        plugin.getLogger().info("Config cargada. server.java-ip = " + loadedIp);
-
         File messagesFile = new File(plugin.getDataFolder(), "messages.yml");
         if (!messagesFile.exists()) plugin.saveResource("messages.yml", false);
         this.messages = YamlConfiguration.loadConfiguration(messagesFile);
@@ -63,42 +59,38 @@ public class ConfigManager {
         return msg;
     }
 
-    // Server
-    public String getJavaIp() { return config.getString("server.java-ip", "127.0.0.1"); }
-    public int getJavaPort() { return config.getInt("server.java-port", 25565); }
-    
-    public String getJavaServerHost() {
-        // Intentar leer de la clave principal
-        String ip = config.getString("server.java-ip", null);
-        
-        // Si no se encontró, probar con una clave alternativa (por si está fuera de server)
-        if (ip == null || ip.isEmpty()) {
-            ip = config.getString("java-ip", null);
-        }
-        
-        // Fallback a 127.0.0.1
-        if (ip == null || ip.isEmpty()) {
-            ip = "127.0.0.1";
-            plugin.getLogger().warning("No se encontró java-ip en config.yml. Usando 127.0.0.1 por defecto.");
-        }
-        
-        if (isDebug()) {
-            plugin.getLogger().info("DEBUG: getJavaServerHost() = " + ip);
-        }
-        return ip;
+    // Bedrock server (para escuchar conexiones)
+    public String getBedrockAddress() {
+        return config.getString("bedrock.address", "0.0.0.0");
     }
     
-    public int getJavaServerPort() {
-        return config.getInt("server.java-port", 26573);
+    public int getBedrockPort() {
+        return config.getInt("bedrock.port", 19132);
     }
     
-    public String getBedrockIp() { return config.getString("server.bedrock-ip", "0.0.0.0"); }
-    public int getBedrockPort() { return config.getInt("server.bedrock-port", 19132); }
+    // Remote Java server (al que conectar)
+    public String getRemoteAddress() {
+        String addr = config.getString("remote.address", "127.0.0.1");
+        if (addr.equalsIgnoreCase("auto")) {
+            return "127.0.0.1";
+        }
+        return addr;
+    }
+    
+    public int getRemotePort() {
+        return config.getInt("remote.port", 25565);
+    }
+    
+    // Métodos legacy (para compatibilidad con código existente)
+    public String getJavaServerHost() { return getRemoteAddress(); }
+    public int getJavaServerPort() { return getRemotePort(); }
+    public String getBedrockIp() { return getBedrockAddress(); }
+    
     public String getMotdLine1() { return config.getString("server.motd-line1", "CrossRealmMC"); }
     public String getMotdLine2() { return config.getString("server.motd-line2", "Java + Bedrock"); }
     public int getMaxBedrockPlayers() { return config.getInt("server.max-bedrock-players", 0); }
 
-    // Auth - unified online-mode with fallback
+    // Auth
     public boolean isJavaOnlineMode() {
         if (config.contains("online-mode")) {
             return config.getBoolean("online-mode", false);
