@@ -5,7 +5,6 @@ import com.comphenix.protocol.ProtocolLibrary;
 import com.comphenix.protocol.ProtocolManager;
 import com.comphenix.protocol.events.PacketAdapter;
 import com.comphenix.protocol.events.PacketEvent;
-import io.netty.buffer.Unpooled;
 import me.crossrealmmc.CrossRealmMC;
 import me.crossrealmmc.raknet.RakNetHandler;
 import org.bukkit.entity.Player;
@@ -17,13 +16,13 @@ import java.util.UUID;
 
 public class JavaPacketInterceptor {
 
-    private final CrossRealmMC plugin;
+    private final CrossRealmMC plugin;  // ← Cambia a CrossRealmMC
     private final ProtocolManager protocolManager;
     private final RakNetHandler rakNetHandler;
     private final Map<UUID, InetSocketAddress> bedrockAddresses = new HashMap<>();
 
     public JavaPacketInterceptor(CrossRealmMC plugin, RakNetHandler rakNetHandler) {
-        this.plugin = plugin;
+        this.plugin = plugin;  // ← Ahora es CrossRealmMC
         this.rakNetHandler = rakNetHandler;
         this.protocolManager = ProtocolLibrary.getProtocolManager();
     }
