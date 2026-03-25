@@ -85,26 +85,60 @@ public class XboxAuthManager {
     public PlayerInfo extractFromJwt(String jwtChainJson) {
         PlayerInfo info = new PlayerInfo();
         try {
+            // LOG 1: Ver qué llega
+            System.out.println("[XboxAuth] JWT recibido: " + 
+                (jwtChainJson.length() > 300 ? jwtChainJson.substring(0, 300) + "..." : jwtChainJson));
+            
             JsonObject root = JsonParser.parseString(jwtChainJson).getAsJsonObject();
             JsonArray chain = root.getAsJsonArray("chain");
+            
+            System.out.println("[XboxAuth] Chain size: " + (chain != null ? chain.size() : 0));
+            
             if (chain == null || chain.size() == 0) {
                 info.success = false;
                 return info;
             }
+            
             String lastJwt = chain.get(chain.size() - 1).getAsString();
+            System.out.println("[XboxAuth] Last JWT (primeros 200): " + 
+                (lastJwt.length() > 200 ? lastJwt.substring(0, 200) : lastJwt));
+            
             JsonObject payload = decodeJwtPayload(lastJwt);
+            
             if (payload == null) {
+                System.out.println("[XboxAuth] Payload es null");
                 info.success = false;
                 return info;
             }
+            
+            System.out.println("[XboxAuth] Payload decodificado: " + payload.toString());
+            
             JsonObject extraData = payload.has("extraData") ? payload.getAsJsonObject("extraData") : null;
+            
             if (extraData != null) {
                 info.username = extraData.has("displayName") ? extraData.get("displayName").getAsString() : null;
                 info.xuid = extraData.has("XUID") ? extraData.get("XUID").getAsString() : null;
+                System.out.println("[XboxAuth] Username encontrado: " + info.username);
+                System.out.println("[XboxAuth] XUID encontrado: " + info.xuid);
+            } else {
+                // Si no hay extraData, buscar directamente en el payload
+                if (payload.has("displayName")) {
+                    info.username = payload.get("displayName").getAsString();
+                    System.out.println("[XboxAuth] Username en payload: " + info.username);
+                }
+                if (payload.has("XUID")) {
+                    info.xuid = payload.get("XUID").getAsString();
+                    System.out.println("[XboxAuth] XUID en payload: " + info.xuid);
+                }
             }
-            info.success = true;
+            
+            info.success = (info.username != null && !info.username.isEmpty());
+            System.out.println("[XboxAuth] Success: " + info.success);
             return info;
+            
         } catch (Exception e) {
+            System.out.println("[XboxAuth] Error: " + e.getMessage());
+            e.printStackTrace();
             info.success = false;
             return info;
         }
