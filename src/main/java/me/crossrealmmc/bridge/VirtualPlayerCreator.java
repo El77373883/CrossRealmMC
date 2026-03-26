@@ -1,135 +1,72 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
-         http://maven.apache.org/xsd/maven-4.0.0.xsd">
-    <modelVersion>4.0.0</modelVersion>
-    <groupId>me.crossrealmmc</groupId>
-    <artifactId>CrossRealmMC</artifactId>
-    <version>1.0.0</version>
-    <packaging>jar</packaging>
-    <properties>
-        <java.version>17</java.version>
-        <maven.compiler.source>17</maven.compiler.source>
-        <maven.compiler.target>17</maven.compiler.target>
-        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    </properties>
-    <repositories>
-        <repository>
-            <id>spigot-repo</id>
-            <url>https://hub.spigotmc.org/nexus/content/repositories/snapshots/</url>
-        </repository>
-        <repository>
-            <id>dmulloy2-repo</id>
-            <url>https://repo.dmulloy2.net/repository/public/</url>
-        </repository>
-        <repository>
-            <id>placeholderapi</id>
-            <url>https://repo.extendedclip.com/content/repositories/placeholderapi/</url>
-        </repository>
-        <repository>
-            <id>viaversion-repo</id>
-            <url>https://repo.viaversion.com</url>
-        </repository>
-        <repository>
-            <id>opencollab-releases</id>
-            <url>https://repo.opencollab.dev/maven-releases/</url>
-        </repository>
-        <repository>
-            <id>opencollab-snapshots</id>
-            <url>https://repo.opencollab.dev/maven-snapshots/</url>
-        </repository>
-    </repositories>
-    <dependencies>
-        <dependency>
-            <groupId>org.spigotmc</groupId>
-            <artifactId>spigot-api</artifactId>
-            <version>1.21.1-R0.1-SNAPSHOT</version>
-            <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>io.netty</groupId>
-            <artifactId>netty-all</artifactId>
-            <version>4.1.97.Final</version>
-            <scope>compile</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.cloudburstmc.netty</groupId>
-            <artifactId>netty-transport-raknet</artifactId>
-            <version>1.0.0.CR3-SNAPSHOT</version>
-            <scope>compile</scope>
-        </dependency>
-        <dependency>
-            <groupId>com.google.code.gson</groupId>
-            <artifactId>gson</artifactId>
-            <version>2.10.1</version>
-            <scope>compile</scope>
-        </dependency>
-        <dependency>
-            <groupId>me.clip</groupId>
-            <artifactId>placeholderapi</artifactId>
-            <version>2.11.6</version>
-            <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>com.viaversion</groupId>
-            <artifactId>viaversion-api</artifactId>
-            <version>5.7.2</version>
-            <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>com.viaversion</groupId>
-            <artifactId>viabackwards</artifactId>
-            <version>5.7.2</version>
-            <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>net.dmulloy2</groupId>
-            <artifactId>ProtocolLib</artifactId>
-            <version>5.4.0</version>
-            <scope>provided</scope>
-        </dependency>
-    </dependencies>
-    <build>
-        <finalName>CrossRealmMC</finalName>
-        <plugins>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.11.0</version>
-                <configuration>
-                    <source>17</source>
-                    <target>17</target>
-                </configuration>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-shade-plugin</artifactId>
-                <version>3.5.1</version>
-                <executions>
-                    <execution>
-                        <phase>package</phase>
-                        <goals><goal>shade</goal></goals>
-                        <configuration>
-                            <createDependencyReducedPom>false</createDependencyReducedPom>
-                            <relocations>
-                                <relocation>
-                                    <pattern>io.netty</pattern>
-                                    <shadedPattern>me.crossrealmmc.libs.netty</shadedPattern>
-                                </relocation>
-                                <relocation>
-                                    <pattern>com.google.gson</pattern>
-                                    <shadedPattern>me.crossrealmmc.libs.gson</shadedPattern>
-                                </relocation>
-                                <relocation>
-                                    <pattern>org.cloudburstmc.netty</pattern>
-                                    <shadedPattern>me.crossrealmmc.libs.raknet</shadedPattern>
-                                </relocation>
-                            </relocations>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
-        </plugins>
-    </build>
-</project>
+package me.crossrealmmc.bridge;
+
+import org.bukkit.Bukkit;
+import org.bukkit.entity.Player;
+
+import java.lang.reflect.Constructor;
+import java.lang.reflect.Method;
+import java.net.InetSocketAddress;
+import java.util.UUID;
+
+public class VirtualPlayerCreator {
+
+    public static Player createVirtualPlayer(UUID uuid, String username, InetSocketAddress address) {
+        try {
+            // Obtener el servidor CraftServer
+            Object craftServer = Bukkit.getServer();
+            
+            // Obtener MinecraftServer a través de reflection
+            Method getServer = craftServer.getClass().getMethod("getServer");
+            Object minecraftServer = getServer.invoke(craftServer);
+            
+            // Obtener el overworld (mundo principal)
+            Method getOverworld = minecraftServer.getClass().getMethod("overworld");
+            Object overworld = getOverworld.invoke(minecraftServer);
+            
+            // Crear GameProfile
+            Class<?> gameProfileClass = Class.forName("com.mojang.authlib.GameProfile");
+            Constructor<?> gameProfileConstructor = gameProfileClass.getConstructor(UUID.class, String.class);
+            Object gameProfile = gameProfileConstructor.newInstance(uuid, username);
+            
+            // Crear ServerPlayer
+            Class<?> serverPlayerClass = Class.forName("net.minecraft.server.level.ServerPlayer");
+            Constructor<?> serverPlayerConstructor = serverPlayerClass.getConstructor(
+                Class.forName("net.minecraft.server.MinecraftServer"),
+                Class.forName("net.minecraft.server.level.ServerLevel"),
+                gameProfileClass
+            );
+            Object serverPlayer = serverPlayerConstructor.newInstance(minecraftServer, overworld, gameProfile);
+            
+            // Crear conexión virtual (null para desconectado)
+            Class<?> packetListenerClass = Class.forName("net.minecraft.server.network.ServerGamePacketListenerImpl");
+            Constructor<?> packetListenerConstructor = packetListenerClass.getConstructor(
+                Class.forName("net.minecraft.server.MinecraftServer"),
+                Class.forName("net.minecraft.network.Connection"),
+                serverPlayerClass
+            );
+            Object connection = packetListenerConstructor.newInstance(minecraftServer, null, serverPlayer);
+            
+            // Asignar la conexión al ServerPlayer (método "a" o "setConnection")
+            try {
+                Method setConnection = serverPlayerClass.getMethod("a", packetListenerClass);
+                setConnection.invoke(serverPlayer, connection);
+            } catch (NoSuchMethodException e) {
+                // Intentar con otro nombre de método
+                Method setConnection = serverPlayerClass.getMethod("setConnection", packetListenerClass);
+                setConnection.invoke(serverPlayer, connection);
+            }
+            
+            // Añadir al servidor
+            Method addPlayer = craftServer.getClass().getMethod("addPlayer", serverPlayerClass.getSuperclass());
+            addPlayer.invoke(craftServer, serverPlayer);
+            
+            // Obtener el Player de Bukkit
+            Method getBukkitEntity = serverPlayerClass.getMethod("getBukkitEntity");
+            return (Player) getBukkitEntity.invoke(serverPlayer);
+            
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+}
