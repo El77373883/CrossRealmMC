@@ -5,7 +5,6 @@ import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.socket.DatagramPacket;
 import me.crossrealmmc.CrossRealmMC;
-import me.crossrealmmc.bridge.VirtualPlayerCreator;
 import me.crossrealmmc.detection.PlayerDetector;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
@@ -197,21 +196,23 @@ public class BedrockLoginHandler {
             plugin.log("&aJugador aceptado: &e" + prefixedName);
             plugin.getPlayerDetector().registerPlayer(uuid, PlayerDetector.PlayerType.BEDROCK, "26.10");
 
-            // ========== CREAR JUGADOR VIRTUAL EN EL SERVIDOR JAVA ==========
-            Player virtualPlayer = VirtualPlayerCreator.createVirtualPlayer(uuid, prefixedName, sender);
-            if (virtualPlayer != null) {
-                plugin.getJavaPacketInterceptor().registerBedrockPlayer(virtualPlayer, sender);
-                plugin.debugLog("Jugador virtual creado: " + prefixedName);
+            // Floodgate crea automáticamente el jugador virtual
+            // Solo registramos en el interceptor
+            Player javaPlayer = Bukkit.getPlayer(uuid);
+            if (javaPlayer != null) {
+                plugin.getJavaPacketInterceptor().registerBedrockPlayer(javaPlayer, sender);
+                plugin.debugLog("Jugador registrado en interceptor (Floodgate): " + prefixedName);
             } else {
-                plugin.debugLog("Error creando jugador virtual para: " + prefixedName);
-                // Si falla, no podemos continuar
-                sendPlayStatus(ctx, sender, STATUS_FAILED_CLIENT);
-                return;
+                plugin.debugLog("Esperando que Floodgate cree el jugador: " + prefixedName);
+                // Floodgate creará el jugador, lo registramos cuando esté listo
+                Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                    Player laterPlayer = Bukkit.getPlayer(uuid);
+                    if (laterPlayer != null) {
+                        plugin.getJavaPacketInterceptor().registerBedrockPlayer(laterPlayer, sender);
+                        plugin.debugLog("Jugador registrado en interceptor (delay): " + prefixedName);
+                    }
+                }, 20L);
             }
-            // ================================================================
-
-            plugin.getJavaPacketInterceptor().registerBedrockPlayer(prefixedName, sender);
-            plugin.debugLog("Jugador registrado en interceptor: " + prefixedName);
 
             sendPlayStatus(ctx, sender, STATUS_LOGIN_SUCCESS);
             sendResourcePacksInfo(ctx, sender);
