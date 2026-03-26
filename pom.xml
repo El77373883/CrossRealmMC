@@ -39,6 +39,10 @@
             <id>opencollab-snapshots</id>
             <url>https://repo.opencollab.dev/maven-snapshots/</url>
         </repository>
+        <repository>
+            <id>geysermc</id>
+            <url>https://repo.opencollab.dev/maven-releases/</url>
+        </repository>
     </repositories>
     <dependencies>
         <dependency>
@@ -87,6 +91,13 @@
             <groupId>net.dmulloy2</groupId>
             <artifactId>ProtocolLib</artifactId>
             <version>5.4.0</version>
+            <scope>provided</scope>
+        </dependency>
+        <!-- Floodgate API -->
+        <dependency>
+            <groupId>org.geysermc.floodgate</groupId>
+            <artifactId>api</artifactId>
+            <version>2.2.2-SNAPSHOT</version>
             <scope>provided</scope>
         </dependency>
     </dependencies>
