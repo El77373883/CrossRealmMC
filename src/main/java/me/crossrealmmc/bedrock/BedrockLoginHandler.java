@@ -197,22 +197,9 @@ public class BedrockLoginHandler {
             plugin.getPlayerDetector().registerPlayer(uuid, PlayerDetector.PlayerType.BEDROCK, "26.10");
 
             // Floodgate crea automáticamente el jugador virtual
-            // Solo registramos en el interceptor
-            Player javaPlayer = Bukkit.getPlayer(uuid);
-            if (javaPlayer != null) {
-                plugin.getJavaPacketInterceptor().registerBedrockPlayer(javaPlayer, sender);
-                plugin.debugLog("Jugador registrado en interceptor (Floodgate): " + prefixedName);
-            } else {
-                plugin.debugLog("Esperando que Floodgate cree el jugador: " + prefixedName);
-                // Floodgate creará el jugador, lo registramos cuando esté listo
-                Bukkit.getScheduler().runTaskLater(plugin, () -> {
-                    Player laterPlayer = Bukkit.getPlayer(uuid);
-                    if (laterPlayer != null) {
-                        plugin.getJavaPacketInterceptor().registerBedrockPlayer(laterPlayer, sender);
-                        plugin.debugLog("Jugador registrado en interceptor (delay): " + prefixedName);
-                    }
-                }, 20L);
-            }
+            // Registramos en el interceptor con el nombre (String)
+            plugin.getJavaPacketInterceptor().registerBedrockPlayer(prefixedName, sender);
+            plugin.debugLog("Jugador registrado en interceptor: " + prefixedName);
 
             sendPlayStatus(ctx, sender, STATUS_LOGIN_SUCCESS);
             sendResourcePacksInfo(ctx, sender);
