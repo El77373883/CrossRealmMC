@@ -23,6 +23,7 @@ public class CrossRealmMC extends JavaPlugin {
     private AntiCheat antiCheat;
     private RakNetServer rakNetServer;
     private JavaPacketInterceptor javaPacketInterceptor;
+    private boolean floodgateEnabled = false;
 
     @Override
     public void onEnable() {
@@ -47,6 +48,14 @@ public class CrossRealmMC extends JavaPlugin {
             log("&aViaVersion &7detectado.");
         if (Bukkit.getPluginManager().getPlugin("ViaBackwards") != null)
             log("&aViaBackwards &7detectado.");
+
+        // Detectar Floodgate
+        if (Bukkit.getPluginManager().getPlugin("floodgate") != null) {
+            floodgateEnabled = true;
+            log("&aFloodgate detectado - Autenticación delegada");
+        } else {
+            log("&eFloodgate no detectado - Usando autenticación propia");
+        }
 
         this.rakNetServer = new RakNetServer(this);
         rakNetServer.start();
@@ -124,6 +133,9 @@ public class CrossRealmMC extends JavaPlugin {
         c("§8[§b✦ CrossRealmMC§8] §7━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
         c("§8[§b✦ CrossRealmMC§8] §a ✔  Plugin cargado y listo.");
         c("§8[§b✦ CrossRealmMC§8] §7    Puerto Bedrock §8: §e" + configManager.getBedrockPort());
+        if (floodgateEnabled) {
+            c("§8[§b✦ CrossRealmMC§8] §7    Floodgate     §8: §a✓ Detectado");
+        }
         c("§8[§b✦ CrossRealmMC§8] §7    Hecho por      §8: §bsoyadrianyt001");
         c("§8[§b✦ CrossRealmMC§8] §7━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
     }
@@ -147,6 +159,10 @@ public class CrossRealmMC extends JavaPlugin {
         if (configManager != null && configManager.isDebug()) {
             c("§8[§eCrossRealmMC §7DEBUG§8] §7" + message);
         }
+    }
+
+    public boolean isFloodgateEnabled() {
+        return floodgateEnabled;
     }
 
     public static CrossRealmMC getInstance() {
