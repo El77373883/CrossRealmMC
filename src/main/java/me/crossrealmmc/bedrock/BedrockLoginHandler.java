@@ -249,7 +249,7 @@ public class BedrockLoginHandler {
         buf.writeBoolean(false);
         writeVarInt(buf, 0);
         writeVarInt(buf, 0);
-        writeString(buf, "1.21.1");
+        writeString(buf, "1.21.70");
         buf.writeIntLE(0);
         buf.writeBoolean(false);
         sendGamePacket(ctx, sender, buf);
